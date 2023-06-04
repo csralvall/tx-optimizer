@@ -1,0 +1,16 @@
+[project]
+name = ""
+version = ""
+description = ""
+authors = [
+    {name = "csralvall", email = "46329881+csralvall@users.noreply.github.com"},
+]
+dependencies = [
+    "pulp>=2.7.0",
+    "sortedcontainers>=2.4.0",
+    "pandas>=2.0.3",
+    "structlog>=23.1.0",
+    "click>=8.1.4",
+]
+requires-python = ">=3.10"
+license = {text = "MIT"}
