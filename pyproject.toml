@@ -14,3 +14,66 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 license = {text = "MIT"}
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pre-commit>=3.3.3",
+]
+
+[tool.pyright]
+reportGeneralTypeIssues = "error"
+
+[tool.black]
+line_length = 79
+target_version = ['py310']
+exclude = '''
+/(
+  \.toml
+  |\.git
+  |Dockerfile
+  |Jenkinfile
+)/
+'''
+
+[tool.isort]
+line_length = 79
+wrap_length = 79
+py_version = 310
+profile = 'black'
+skip = ['.gitignore', '.dockerignore']
+multi_line_output = 3
+skip_gitignore = true
+case_sensitive = true
+group_by_package = true
+include_trailing_comma = true
+combine_star = true
+atomic = true
+use_parentheses = true
+
+[tool.ruff]
+select = [
+ "E",
+ "W",
+ "DJ",
+ "F",
+ "B",
+ "UP",
+ "C4",
+ "DTZ",
+ "T10",
+ "T20",
+ "G",
+ "SIM",
+ "PLR",
+ "PLW",
+ "RUF",
+]
+line-length = 119
+ignore = ["DJ001"]
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.coverage.report]
+skip_empty = true
+skip_covered = true

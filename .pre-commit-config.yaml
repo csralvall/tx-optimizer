@@ -1,0 +1,41 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_language_version:
+    python: python3.10
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.4.0
+  hooks:
+  - id: check-merge-conflict
+    stages: [commit]
+  - id: end-of-file-fixer
+    stages: [commit]
+  - id: debug-statements
+    stages: [commit]
+  - id: no-commit-to-branch
+    args: [-b, staging, -b, qa]
+    stages: [commit]
+  - id: trailing-whitespace
+    stages: [commit]
+  - id: check-json
+    stages: [commit]
+  - id: check-symlinks
+    stages: [commit]
+  - id: check-added-large-files
+    stages: [commit]
+  - id: detect-private-key
+    stages: [commit]
+- repo: https://github.com/python/black
+  rev: 23.3.0
+  hooks:
+  - id: black
+    stages: [commit]
+- repo: https://github.com/PyCQA/isort
+  rev: 5.12.0
+  hooks:
+  - id: isort
+    stages: [commit]
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.0.276
+  hooks:
+    - id: ruff
