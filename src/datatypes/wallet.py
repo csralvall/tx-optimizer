@@ -56,5 +56,5 @@ class Wallet:
         utxo: UTxO = cast(UTxO, self._lookup_pool.get(utxo_id))
         return utxo
 
-    def __len__(self):
-        return len(self.utxo_pool)
+    def __len__(self) -> int:
+        return len(self._utxo_pool)
