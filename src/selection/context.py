@@ -69,7 +69,7 @@ class SelectionContext:
 
     @property
     def wallet_utxos(self) -> Iterator[UTxO]:
-        return reversed(self.wallet.utxo_pool.values())
+        return reversed(self.wallet._utxo_pool.values())
 
     @property
     def fee_rate_delta(self) -> FeeRate:

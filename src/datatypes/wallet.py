@@ -25,23 +25,23 @@ class InconsistentWallet(Exception):
 
 @dataclass
 class Wallet:
-    index: int = 0
-    utxo_pool: SortedDict = field(default_factory=SortedDict)
-    lookup_pool: SortedDict = field(default_factory=SortedDict)
+    _index: int = 0
+    _lookup_pool: dict = field(default_factory=dict)
+    _utxo_pool: SortedDict = field(default_factory=SortedDict)
 
     def add(self, utxo: UTxO) -> None:
-        utxo.wallet_id = self.index
-        self.utxo_pool[(utxo.amount, self.index)] = utxo
-        self.lookup_pool[self.index] = utxo
-        self.index += 1
+        utxo.wallet_id = self._index
+        self._utxo_pool[(utxo.amount, self._index)] = utxo
+        self._lookup_pool[self._index] = utxo
+        self._index += 1
 
     def pop(self, utxo: UTxO) -> UTxO:
         if utxo.wallet_id < 0:
             raise UTxONotInWallet
         sorted_utxo: UTxO = cast(
-            UTxO, self.utxo_pool.pop((utxo.amount, utxo.wallet_id))
+            UTxO, self._utxo_pool.pop((utxo.amount, utxo.wallet_id))
         )
-        lookup_utxo: UTxO = cast(UTxO, self.lookup_pool.pop(utxo.wallet_id))
+        lookup_utxo: UTxO = cast(UTxO, self._lookup_pool.pop(utxo.wallet_id))
 
         if sorted_utxo is not lookup_utxo:
             raise InconsistentWallet
@@ -49,7 +49,7 @@ class Wallet:
         return sorted_utxo
 
     def get(self, utxo_id: int) -> UTxO:
-        utxo: UTxO = cast(UTxO, self.lookup_pool.get(utxo_id))
+        utxo: UTxO = cast(UTxO, self._lookup_pool.get(utxo_id))
         return utxo
 
     def __len__(self):
