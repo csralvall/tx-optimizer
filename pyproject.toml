@@ -11,6 +11,8 @@ dependencies = [
     "pandas>=2.0.3",
     "structlog>=23.1.0",
     "click>=8.1.4",
+    "sshtunnel>=0.4.0",
+    "numpy>=1.25.1",
 ]
 requires-python = ">=3.10"
 license = {text = "MIT"}
