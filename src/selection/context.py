@@ -15,6 +15,8 @@ from datatypes.wallet import Wallet
 
 LOGGER = structlog.stdlib.get_logger(__name__)
 
+TARGET_FEE_RATE_KEY: str = "TFR"
+
 
 class UTxOKey(NamedTuple):
     amount: float
@@ -121,6 +123,7 @@ class SelectionContext:
                 "real_fee_rate": self.tx.real_fee_rate,
                 **self.tx.digest,
             }
+        base_data[TARGET_FEE_RATE_KEY] = self.fee_rate
         return base_data
 
     def to_csv(self) -> tuple:

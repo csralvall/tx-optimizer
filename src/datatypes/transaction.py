@@ -16,6 +16,9 @@ VARINT_M: int = 0xFFFF
 VARINT_L: int = 0xFFFFFFFF
 VARINT_XL: int = 0xFFFFFFFFFFFFFFFF
 
+PRESERVED_EFFECTIVE_VALUE_KEY: str = "PEV"
+FINAL_FEE_RATE_KEY: str = "FFR"
+
 
 def get_var_int_weight(length: int) -> int:
     weight: int = 0
@@ -116,4 +119,6 @@ class TxDescriptor:
             "#payments": len(self.payments),
             "#change": len(self.change),
             "excess": self.excess,
+            PRESERVED_EFFECTIVE_VALUE_KEY: self.change_amount,
+            FINAL_FEE_RATE_KEY: str(self.final_fee_rate),
         }
