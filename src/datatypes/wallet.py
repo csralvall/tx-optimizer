@@ -25,6 +25,7 @@ class InconsistentWallet(Exception):
 
 @dataclass
 class Wallet:
+    balance: int = 0
     _index: int = 0
     _lookup_pool: dict = field(default_factory=dict)
     _utxo_pool: SortedDict = field(default_factory=SortedDict)
@@ -34,6 +35,7 @@ class Wallet:
         self._utxo_pool[(utxo.amount, self._index)] = utxo
         self._lookup_pool[self._index] = utxo
         self._index += 1
+        self.balance += utxo.amount
 
     def pop(self, utxo: UTxO) -> UTxO:
         if utxo.wallet_id < 0:
@@ -45,6 +47,8 @@ class Wallet:
 
         if sorted_utxo is not lookup_utxo:
             raise InconsistentWallet
+
+        self.balance -= sorted_utxo.amount
 
         return sorted_utxo
 
