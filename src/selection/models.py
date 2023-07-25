@@ -227,7 +227,7 @@ def minimize_waste_without_change(
             LpVariable(f"y_{utxo.wallet_id}", cat="Binary"),
             utxo.input_fee(selection_context.fee_rate_delta),
         )
-        for utxo in selection_context.wallet_utxos
+        for utxo in selection_context.wallet
     ]
 
     timing_variables = [
@@ -319,7 +319,7 @@ def minimize_waste_with_change(
             LpVariable(f"y_{utxo.wallet_id}", cat="Binary"),
             utxo.input_fee(selection_context.fee_rate_delta),
         )
-        for utxo in selection_context.wallet_utxos
+        for utxo in selection_context.wallet
     ]
 
     timing_variables = [
@@ -414,7 +414,7 @@ def minimize_waste_pairing_change_effective_value_with_payments(
             LpVariable(f"y_{utxo.wallet_id}", cat="Binary"),
             utxo.input_fee(fee_delta),
         )
-        for utxo in selection_context.wallet_utxos
+        for utxo in selection_context.wallet
     ]
 
     timing_variables = [

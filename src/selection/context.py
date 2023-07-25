@@ -77,9 +77,7 @@ class SelectionContext:
 
     @property
     def fee_rated_utxos(self) -> list[FeeRatedUTxO]:
-        return [
-            FeeRatedUTxO.new(utxo, self.fee_rate) for utxo in self.wallet_utxos
-        ]
+        return [FeeRatedUTxO.new(utxo, self.fee_rate) for utxo in self.wallet]
 
     @property
     def payment_amount(self) -> int:

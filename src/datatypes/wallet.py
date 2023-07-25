@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from dataclasses import dataclass, field
 from typing import cast
 
@@ -58,3 +59,6 @@ class Wallet:
 
     def __len__(self) -> int:
         return len(self._utxo_pool)
+
+    def __iter__(self) -> Generator[UTxO, None, None]:
+        yield from reversed(self._utxo_pool.values())
