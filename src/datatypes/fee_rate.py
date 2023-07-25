@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import structlog
 
-from utils import sat_kvB_to_sat_vB
+from utils.bitcoin import sat_kvB_to_sat_vB
 
 LOGGER = structlog.stdlib.get_logger(__name__)
 

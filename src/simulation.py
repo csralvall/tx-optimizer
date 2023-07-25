@@ -19,7 +19,7 @@ from selection.models import (
     greatest_first,
     minimize_inputs_without_change,
 )
-from utils import btc_to_sat
+from utils.bitcoin import btc_to_sat
 
 LOGGER = structlog.stdlib.get_logger("simulation")
 

@@ -7,7 +7,7 @@ import structlog
 
 from datatypes.fee_rate import FeeRate
 from datatypes.utxo import UTxO
-from utils import sat_vB_to_sat_kvB
+from utils.bitcoin import sat_vB_to_sat_kvB
 
 LOGGER = structlog.stdlib.get_logger(__name__)
 
