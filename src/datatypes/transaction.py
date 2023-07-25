@@ -52,14 +52,9 @@ class TxDescriptor:
         return fee_rate.fee(self.weight)
 
     def fix_rounding_errors(self, fee_rate: FeeRate) -> None:
-        input_amount = sum(utxo.amount for utxo in self.inputs)
-        payment_amount = sum(utxo.amount for utxo in self.payments)
-        change_amount = sum(utxo.amount for utxo in self.change)
-
         extra_sats: int = (
-            input_amount
-            - payment_amount
-            - change_amount
+            self.input_amount
+            - self.output_amount
             - self.excess
             - self.fee(fee_rate)
         )
@@ -71,12 +66,25 @@ class TxDescriptor:
             self.excess += extra_sats
 
     def valid(self, fee_rate: FeeRate) -> bool:
-        total_input: int = sum(utxo.amount for utxo in self.inputs)
-        total_output: int = sum(utxo.amount for utxo in self.payments)
-        total_output += sum(utxo.amount for utxo in self.change)
-        total_output += self.excess
-        total_output += self.fee(fee_rate)
-        return total_input == total_output
+        total_outgoing: int = self.output_amount
+        total_outgoing += self.fee(fee_rate) + self.excess
+        return self.input_amount == total_outgoing
+
+    @property
+    def input_amount(self) -> int:
+        return sum(utxo.amount for utxo in self.inputs)
+
+    @property
+    def payment_amount(self) -> int:
+        return sum(utxo.amount for utxo in self.payments)
+
+    @property
+    def change_amount(self) -> int:
+        return sum(utxo.amount for utxo in self.change)
+
+    @property
+    def output_amount(self) -> int:
+        return self.payment_amount + self.change_amount
 
     @property
     def weight(self) -> int:
@@ -102,11 +110,8 @@ class TxDescriptor:
         return header_weight + output_vector_weight + input_vector_weight
 
     @property
-    def real_fee_rate(self) -> FeeRate:
-        total_input: int = sum(utxo.amount for utxo in self.inputs)
-        payload: int = sum(utxo.amount for utxo in self.payments)
-        payload += sum(utxo.amount for utxo in self.change)
-        actual_fee = total_input - payload + self.excess
+    def final_fee_rate(self) -> FeeRate:
+        actual_fee = self.input_amount - self.output_amount
         LOGGER.debug(f"Tx actual fee {actual_fee}.")
         sats_vB = actual_fee / self.weight
         sats_kvB: int = sat_vB_to_sat_kvB(sats_vB)

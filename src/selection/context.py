@@ -120,7 +120,7 @@ class SelectionContext:
         if self.status == "success" and self.tx:
             base_data = {
                 **base_data,
-                "real_fee_rate": self.tx.real_fee_rate,
+                "final_fee_rate": self.tx.final_fee_rate,
                 **self.tx.digest,
             }
         base_data[TARGET_FEE_RATE_KEY] = self.fee_rate
@@ -132,7 +132,7 @@ class SelectionContext:
                 self.status,
                 len(self.wallet),
                 str(self.fee_rate),
-                str(self.tx.real_fee_rate),
+                str(self.tx.final_fee_rate),
                 len(self.tx.inputs),
                 len(self.tx.payments),
                 len(self.tx.change),
