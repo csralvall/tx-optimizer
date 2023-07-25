@@ -112,6 +112,8 @@ class TxDescriptor:
     @property
     def final_fee_rate(self) -> FeeRate:
         actual_fee = self.input_amount - self.output_amount
+        if actual_fee < 0:
+            return FeeRate(0)
         LOGGER.debug(f"Tx actual fee {actual_fee}.")
         sats_vB = actual_fee / self.weight
         sats_kvB: int = sat_vB_to_sat_kvB(sats_vB)
