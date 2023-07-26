@@ -478,10 +478,14 @@ def minimize_waste_pairing_change_effective_value_with_payments(
 
     tx = selection_context.get_tx(selected_input_ids)
 
-    overpayment_amount: int = cast(int, excess.value())
+    overtarget_amount: int = cast(int, excess.value())
 
-    change_utxo = selection_context.get_change_utxo(overpayment_amount)
-    tx.change.append(change_utxo)
+    overpayment_amount = (
+        tx.input_amount
+        - tx.payment_amount
+        - tx.fee(selection_context.fee_rate)
+        + int(overtarget_amount)
+    )
 
     try:
         tx.change.append(selection_context.get_change_utxo(overpayment_amount))
