@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+from pathlib import Path
+
+import click
+
+from log_config import configure_loggers
+from scenarios.scenario import scenario
+from simulation import simulate
+
+
+@click.group(help="Bitcoin coin selection analysis tool.")
+@click.option(
+    "--data-path",
+    "-d",
+    "data_path",
+    default=Path(__file__).parent.absolute() / "../data",
+    type=click.Path(exists=True),
+    help="The directory to read and write data.",
+)
+@click.option(
+    "--debug",
+    "-D",
+    default=False,
+    is_flag=True,
+    help="Run commands with logging in debug mode.",
+    type=bool,
+)
+@click.pass_context
+def cli(context, data_path: Path, debug: bool) -> None:
+    context.obj = {"data_path": data_path}
+    log_level: str = "DEBUG" if debug else "INFO"
+    configure_loggers(log_level=log_level)
+
+
+cli.add_command(simulate)
+cli.add_command(scenario)
+
+
+if __name__ == "__main__":
+    cli()
