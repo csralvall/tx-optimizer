@@ -19,7 +19,7 @@ from datatypes.transaction import TxDescriptor
 from selection.context import DustUTxO, SelectionContext
 from selection.metrics import waste
 
-LOGGER = structlog.getLogger()
+LOGGER = structlog.stdlib.get_logger(__name__)
 
 DEFAULT_SOLVER = PULP_CBC_CMD(msg=False, timeLimit=15)
 
