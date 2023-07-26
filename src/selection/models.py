@@ -399,11 +399,25 @@ def minimize_waste_pairing_change_effective_value_with_payments(
 
     total_input = LpAffineExpression(desicion_terms)
 
-    overpayment = (
-        total_input
-        - selection_context.target
-        - selection_context.payment_amount
-    )  # double payment amount
+    low_limit: float = (
+        selection_context.payments_mean - selection_context.payments_stdev
+    )
+    top_limit: float = (
+        selection_context.payments_mean + selection_context.payments_stdev
+    )
+    desired_change: int = 0
+    for payment in selection_context.payments:
+        if payment.amount >= low_limit and payment.amount <= top_limit:
+            desired_change += payment.amount
+
+    target: int = (
+        selection_context.base_fee
+        + selection_context.payment_amount
+        + desired_change
+    )
+
+    # aim for a change equal to the accumulated amount of most common payments
+    excess = total_input - target
 
     # Waste Terms
     # Difference between current fee and consolidation fee to get timing cost
@@ -432,10 +446,10 @@ def minimize_waste_pairing_change_effective_value_with_payments(
     )
 
     # Objective function
-    model += waste + overpayment
+    model += waste + excess
 
     # Constraints
-    model += (overpayment >= 0, "pay_requested_amount_constraint")
+    model += (excess >= 0, "pay_requested_amount_constraint")
 
     for idx, (desicion_var, timing_var) in enumerate(
         zip(desicion_variables, timing_variables, strict=True)
@@ -464,7 +478,7 @@ def minimize_waste_pairing_change_effective_value_with_payments(
 
     tx = selection_context.get_tx(selected_input_ids)
 
-    overpayment_amount: int = cast(int, overpayment.value())
+    overpayment_amount: int = cast(int, excess.value())
 
     change_utxo = selection_context.get_change_utxo(overpayment_amount)
     tx.change.append(change_utxo)
