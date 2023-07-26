@@ -31,23 +31,32 @@ def simulate(
     csv_writer,
 ) -> None:
     wallet = Wallet()
-    pending_payments = []
-    for _, row in scenario.iterrows():
-        if row.amount > 0:
-            utxo: UTxO = UTxO(
-                output_type=OutputType.P2WPKH, amount=btc_to_sat(row.amount)
-            )
-            wallet.add(utxo)
+    total_payments: int = (
+        scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
+    )
+    realized_payments: int = 0
+    blocks = scenario.groupby("block_id")
+    for _, block in blocks:
+        pending_payments: list = []
+        fee_rate = FeeRate(btc_to_sat(block.fee_rate.values[0]))
+        for _, tx in block.iterrows():
+            if tx.amount > 0:
+                utxo: UTxO = UTxO(
+                    output_type=OutputType.P2WPKH, amount=btc_to_sat(tx.amount)
+                )
+                wallet.add(utxo)
+            else:
+                pending_payments.append(
+                    UTxO(
+                        output_type=OutputType.P2WPKH,
+                        amount=btc_to_sat(abs(tx.amount)),
+                    )
+                )
+
+        if not pending_payments:
             continue
 
-        pending_payments.append(
-            UTxO(
-                output_type=OutputType.P2WPKH,
-                amount=btc_to_sat(abs(row.amount)),
-            )
-        )
-        fee_rate = FeeRate(btc_to_sat(row.fee))
-        tx: TxDescriptor
+        new_tx: TxDescriptor
         selector: str
         selection_context = SelectionContext(
             wallet=wallet, payments=pending_payments, fee_rate=fee_rate
@@ -58,34 +67,38 @@ def simulate(
             LOGGER.warn(str(e), **selection_context.digest)
             continue
 
-        iter_start_time = time.time()
+        selection_start_time: float = time.time()
         try:
-            tx = main_algorithm(selection_context=selection_context)
+            new_tx = main_algorithm(selection_context=selection_context)
             selector = f"{main_algorithm.__name__}"
         except UTxOSelectionFailed:
-            tx = fallback_algorithm(selection_context=selection_context)
+            new_tx = fallback_algorithm(selection_context=selection_context)
             selector = f"{fallback_algorithm.__name__}"
         finally:
-            iter_end_time = time.time()
+            selection_end_time: float = time.time()
 
-        selection_context.settle_tx(tx)
+        selection_context.settle_tx(new_tx)
 
         pending_payments = [
             payment
             for payment in pending_payments
-            if payment not in tx.payments
+            if payment not in new_tx.payments
         ]
         csv_writer.writerow(selection_context.to_csv())
 
-        for utxo in tx.inputs:
+        for utxo in new_tx.inputs:
             wallet.pop(utxo)
 
-        for utxo in tx.change:
+        for utxo in new_tx.change:
             wallet.add(utxo)
 
-        formatted_processing_time = f"{iter_end_time - iter_start_time:.4f}"
+        formatted_processing_time: str = (
+            f"{selection_end_time - selection_start_time:.4f}"
+        )
+        realized_payments += 1
+        info_str: str = f"{selector} - {realized_payments}/{total_payments}"
         LOGGER.info(
-            selector,
+            info_str,
             processing_time=formatted_processing_time,
             **selection_context.digest,
         )
@@ -109,7 +122,7 @@ def main(all: bool = False):
                 mode="w"
             ) as csv_output:
                 coin_selection_scenario: DataFrame = pandas.read_csv(
-                    csv_input, names=["amount", "fee"]
+                    csv_input, names=["block_id", "amount", "fee"]
                 )
                 writer = csv.writer(csv_output)
                 simulate(
