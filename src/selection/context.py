@@ -62,9 +62,9 @@ class SelectionContext:
         min_tx = TxDescriptor(
             inputs=[], payments=self.payments, change=[], excess=0
         )
-        minimal_tx_fees: int = min_tx.fee(self.fee_rate)
+        self._minimal_tx_fees: int = min_tx.fee(self.fee_rate)
         self.tx = min_tx
-        self._target = self.payment_amount + minimal_tx_fees
+        self._target = self.payment_amount + self._minimal_tx_fees
         self._change_template = UTxO(output_type=self.change_type, amount=0)
 
     @property
@@ -86,6 +86,10 @@ class SelectionContext:
     @property
     def payments_stdev(self) -> float:
         return pstdev(utxo.amount for utxo in self.payments)
+
+    @property
+    def base_fee(self) -> int:
+        return self._minimal_tx_fees
 
     @property
     def target(self) -> int:
