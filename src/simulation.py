@@ -11,20 +11,30 @@ from datatypes.fee_rate import FeeRate
 from datatypes.transaction import TxDescriptor
 from datatypes.utxo import OutputType, UTxO
 from datatypes.wallet import Wallet
-from log_config import configure_loggers
 from selection.context import NotEnoughFunds, SelectionContext
 from selection.models import (
     CoinSelectionAlgorithm,
     UTxOSelectionFailed,
+    avoid_change,
     greatest_first,
-    minimize_inputs_without_change,
+    maximize_effective_value,
+    minimize_waste,
+    single_random_draw,
 )
 from utils.bitcoin import btc_to_sat
 
 LOGGER = structlog.stdlib.get_logger("simulation")
 
+MODELS: dict[str, CoinSelectionAlgorithm] = {
+    "greatest_first": greatest_first,
+    "single_random_draw": single_random_draw,
+    "minimize_waste": minimize_waste,
+    "maximize_effective_value": maximize_effective_value,
+    "avoid_change": avoid_change,
+}
 
-def simulate(
+
+def run_simulation(
     scenario: DataFrame,
     main_algorithm: CoinSelectionAlgorithm,
     fallback_algorithm: CoinSelectionAlgorithm,
@@ -104,34 +114,41 @@ def simulate(
         )
 
 
-@click.command()
+@click.command(help="Run bitcoin coin selection simulations.")
 @click.option(
-    "--all", is_flag=True, help="Run all stored simulation scenarios."
+    "--scenario",
+    default="*",
+    help="Provide a scenario name to run from scenarios directory.",
 )
-def main(all: bool = False):
-    configure_loggers(log_level="INFO")
-
-    results_dir = Path.cwd() / "../results"
-
-    if all:
-        data_dir = Path.cwd() / "../data"
-
-        for path in data_dir.glob("bustabit-2019-2020-tiny.csv"):
-            results_file = results_dir / path.name
-            with path.open(mode="r") as csv_input, path, results_file.open(
-                mode="w"
-            ) as csv_output:
-                coin_selection_scenario: DataFrame = pandas.read_csv(
-                    csv_input, names=["block_id", "amount", "fee"]
-                )
-                writer = csv.writer(csv_output)
-                simulate(
+@click.option(
+    "--model", default="", help="Select a model to run the scenarios."
+)
+@click.pass_obj
+def simulate(ctx, scenario: str, model: str) -> None:
+    data_root: Path = ctx.get("data_path")
+    simulation_dir: Path = data_root / "simulations"
+    scenarios_dir: Path = data_root / "scenarios"
+    for path in scenarios_dir.glob(scenario):
+        results_file: Path = simulation_dir / path.name
+        with path.open(mode="r") as csv_input, results_file.open(
+            mode="w"
+        ) as csv_output:
+            coin_selection_scenario: DataFrame = pandas.read_csv(
+                csv_input, names=["block_id", "amount", "fee_rate"]
+            )
+            writer = csv.writer(csv_output)
+            if model:
+                return run_simulation(
                     scenario=coin_selection_scenario,
-                    main_algorithm=minimize_inputs_without_change,
+                    main_algorithm=MODELS[model],
                     fallback_algorithm=greatest_first,
                     csv_writer=writer,
                 )
 
-
-if __name__ == "__main__":
-    main()
+            for algorithm in MODELS.values():
+                run_simulation(
+                    scenario=coin_selection_scenario,
+                    main_algorithm=algorithm,
+                    fallback_algorithm=greatest_first,
+                    csv_writer=writer,
+                )
