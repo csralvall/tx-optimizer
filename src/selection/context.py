@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from itertools import accumulate
+from statistics import fmean, pstdev
 from typing import Literal, NamedTuple
 
 import structlog
@@ -77,6 +78,14 @@ class SelectionContext:
     @property
     def payment_amount(self) -> int:
         return sum(utxo.amount for utxo in self.payments)
+
+    @property
+    def payments_mean(self) -> float:
+        return fmean(utxo.amount for utxo in self.payments)
+
+    @property
+    def payments_stdev(self) -> float:
+        return pstdev(utxo.amount for utxo in self.payments)
 
     @property
     def target(self) -> int:
