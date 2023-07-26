@@ -39,8 +39,6 @@ class FeeRatedUTxO:
 class InvalidTransaction(Exception):
     """Raise when the input minus output minus fees doesn't equal zero."""
 
-    pass
-
 
 class NotEnoughFunds(Exception):
     """Raise when payments at current fee rate can't be covered by wallet."""
