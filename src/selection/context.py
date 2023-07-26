@@ -40,6 +40,10 @@ class InvalidTransaction(Exception):
     """Raise when the input minus output minus fees doesn't equal zero."""
 
 
+class DustUTxO(Exception):
+    """Raise when the UTxO amount cannot cover fees at consolidation fee rate."""
+
+
 class NotEnoughFunds(Exception):
     """Raise when payments at current fee rate can't be covered by wallet."""
 
@@ -118,39 +122,36 @@ class SelectionContext:
     def digest(self) -> dict:
         base_data: dict = {
             "status": self.status,
+            "balance": self.wallet.balance,
             "#wallet": len(self.wallet),
-            "target_fee_rate": self.fee_rate,
         }
         if self.status == "success" and self.tx:
+            base_data.pop("status")
             base_data = {
                 **base_data,
-                "final_fee_rate": self.tx.final_fee_rate,
+                "fee": self.tx.fee(self.fee_rate),
                 **self.tx.digest,
             }
         base_data[TARGET_FEE_RATE_KEY] = self.fee_rate
         return base_data
 
     def to_csv(self) -> tuple:
+        tx_data: tuple = (0, 0, len(self.payments), 0, 0, 0, 0)
         if self.status == "success" and self.tx:
-            return (
-                self.status,
-                len(self.wallet),
-                str(self.fee_rate),
-                str(self.tx.final_fee_rate),
+            tx_data = (
+                self.tx.fee(self.fee_rate),
                 len(self.tx.inputs),
                 len(self.tx.payments),
                 len(self.tx.change),
+                self.tx.change_amount,
                 self.tx.excess,
             )
         return (
             self.status,
+            self.wallet.balance,
             len(self.wallet),
+            *tx_data,
             str(self.fee_rate),
-            None,
-            None,
-            None,
-            None,
-            None,
         )
 
     def funds_are_enough(self) -> None:
@@ -163,6 +164,9 @@ class SelectionContext:
         amount_with_fee_discount: int = overpayment - change_utxo.output_fee(
             self.fee_rate
         )
+        if amount_with_fee_discount < change_utxo.input_fee(self.fee_rate):
+            raise DustUTxO
+
         change_utxo.amount = amount_with_fee_discount
         return change_utxo
 

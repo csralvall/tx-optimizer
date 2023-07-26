@@ -16,8 +16,7 @@ from pulp import (
 
 from datatypes.fee_rate import FeeRate
 from datatypes.transaction import TxDescriptor
-from datatypes.utxo import UTxO
-from selection.context import SelectionContext
+from selection.context import DustUTxO, SelectionContext
 from selection.metrics import waste
 
 LOGGER = structlog.getLogger()
@@ -51,10 +50,9 @@ def greatest_first(selection_context: SelectionContext) -> TxDescriptor:
         sum(utxo.amount for utxo in tx.inputs) - selection_context.target
     )
 
-    if overpayment > selection_context.change_cost:
-        change_utxo: UTxO = selection_context.get_change_utxo(overpayment)
-        tx.change.append(change_utxo)
-    else:
+    try:
+        tx.change.append(selection_context.get_change_utxo(overpayment))
+    except DustUTxO:
         tx.excess = int(overpayment)
 
     tx.fix_rounding_errors(fee_rate)
@@ -75,10 +73,10 @@ def single_random_draw(selection_context: SelectionContext) -> TxDescriptor:
     tx = selection_context.get_tx(selected_input_ids)
 
     overpayment: int = selected_amount - selection_context.target
-    if overpayment > selection_context.change_cost:
-        change_utxo = selection_context.get_change_utxo(overpayment)
-        tx.change.append(change_utxo)
-    else:
+
+    try:
+        tx.change.append(selection_context.get_change_utxo(overpayment))
+    except DustUTxO:
         tx.excess = int(overpayment)
 
     tx.fix_rounding_errors(selection_context.fee_rate)
@@ -371,6 +369,7 @@ def minimize_waste_with_change(
 
     overpayment_amount: int = cast(int, overpayment.value())
 
+    # overpayment_amount should be above change output costs
     change_utxo = selection_context.get_change_utxo(overpayment_amount)
     tx.change.append(change_utxo)
 
@@ -468,6 +467,12 @@ def minimize_waste_pairing_change_effective_value_with_payments(
 
     change_utxo = selection_context.get_change_utxo(overpayment_amount)
     tx.change.append(change_utxo)
+
+    try:
+        tx.change.append(selection_context.get_change_utxo(overpayment_amount))
+    except DustUTxO:
+        tx.excess = overpayment_amount
+        pass
 
     tx.fix_rounding_errors(selection_context.fee_rate)
 
