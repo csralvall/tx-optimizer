@@ -1,6 +1,7 @@
 import random
 from collections.abc import Callable
 from functools import partial
+from multiprocessing import cpu_count
 from typing import Protocol, cast
 
 import structlog
@@ -21,7 +22,7 @@ from selection.metrics import waste
 
 LOGGER = structlog.stdlib.get_logger(__name__)
 
-DEFAULT_SOLVER = PULP_CBC_CMD(msg=False, timeLimit=15)
+DEFAULT_SOLVER = PULP_CBC_CMD(msg=False, timeLimit=15, threads=cpu_count() - 1)
 
 
 class UTxOSelectionFailed(Exception):
