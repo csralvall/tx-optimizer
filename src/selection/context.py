@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from itertools import accumulate
@@ -66,10 +65,6 @@ class SelectionContext:
         self.tx = min_tx
         self._target = self.payment_amount + minimal_tx_fees
         self._change_template = UTxO(output_type=self.change_type, amount=0)
-
-    @property
-    def wallet_utxos(self) -> Iterator[UTxO]:
-        return reversed(self.wallet._utxo_pool.values())
 
     @property
     def fee_rate_delta(self) -> FeeRate:
