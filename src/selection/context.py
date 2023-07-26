@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from copy import copy
+from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from itertools import accumulate
 from typing import Literal, NamedTuple
@@ -161,7 +161,7 @@ class SelectionContext:
         return change_utxo
 
     def get_tx(self, utxo_ids: list[int]) -> TxDescriptor:
-        tx = copy(self.tx)
+        tx = deepcopy(self.tx)
         tx.inputs = [self.wallet.get(id) for id in utxo_ids]
         return tx
 
