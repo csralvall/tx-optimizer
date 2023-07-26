@@ -380,7 +380,7 @@ def minimize_waste_with_change(
     return tx
 
 
-def minimize_waste_pairing_change_effective_value_with_payments(
+def aim_payment_amount_as_change(
     selection_context: SelectionContext,
     solver: LpSolver = DEFAULT_SOLVER,
 ) -> TxDescriptor:
@@ -522,11 +522,7 @@ def maximize_effective_value(
     except UTxOSelectionFailed:
         pass
     finally:
-        txs.append(
-            minimize_waste_pairing_change_effective_value_with_payments(
-                selection_context
-            )
-        )
+        txs.append(aim_payment_amount_as_change(selection_context))
 
     current_waste: Callable = partial(
         waste, fee_rate=selection_context.fee_rate
