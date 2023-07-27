@@ -1,6 +1,7 @@
 import csv
 import time
 from pathlib import Path
+from typing import TextIO
 
 import click
 import pandas
@@ -38,8 +39,9 @@ def run_simulation(
     scenario: DataFrame,
     main_algorithm: CoinSelectionAlgorithm,
     fallback_algorithm: CoinSelectionAlgorithm,
-    csv_writer,
+    output_file: TextIO,
 ) -> None:
+    txs_writer = csv.writer(output_file)
     wallet = Wallet()
     total_payments: int = (
         scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
@@ -94,7 +96,7 @@ def run_simulation(
             for payment in pending_payments
             if payment not in new_tx.payments
         ]
-        csv_writer.writerow(selection_context.to_csv())
+        txs_writer.writerow(selection_context.to_csv())
 
         for utxo in new_tx.inputs:
             wallet.pop(utxo)
@@ -128,21 +130,23 @@ def simulate(ctx, scenario: str, model: str) -> None:
     data_root: Path = ctx.get("data_path")
     simulation_dir: Path = data_root / "simulations"
     scenarios_dir: Path = data_root / "scenarios"
-    for path in scenarios_dir.glob(scenario):
-        results_file: Path = simulation_dir / path.name
-        with path.open(mode="r") as csv_input, results_file.open(
-            mode="w"
-        ) as csv_output:
+    for scenario_path in scenarios_dir.glob(scenario):
+        simulation_scenario: Path = simulation_dir / scenario_path.stem
+        simulation_scenario.mkdir(parents=True, exist_ok=True)
+        transactions_log_path: Path = simulation_scenario / "transactions.csv"
+        with (
+            scenario_path.open(mode="r") as csv_input,
+            transactions_log_path.open(mode="w") as transactions_log_output,
+        ):
             coin_selection_scenario: DataFrame = pandas.read_csv(
                 csv_input, names=["block_id", "amount", "fee_rate"]
             )
-            writer = csv.writer(csv_output)
             if model:
                 return run_simulation(
                     scenario=coin_selection_scenario,
                     main_algorithm=MODELS[model],
                     fallback_algorithm=greatest_first,
-                    csv_writer=writer,
+                    output_file=transactions_log_output,
                 )
 
             for algorithm in MODELS.values():
@@ -150,5 +154,5 @@ def simulate(ctx, scenario: str, model: str) -> None:
                     scenario=coin_selection_scenario,
                     main_algorithm=algorithm,
                     fallback_algorithm=greatest_first,
-                    csv_writer=writer,
+                    output_file=transactions_log_output,
                 )
