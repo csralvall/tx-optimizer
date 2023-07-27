@@ -137,7 +137,9 @@ class SelectionContext:
 
     def to_csv(self) -> tuple:
         tx_data: tuple = (0, 0, len(self.payments), 0, 0, 0, 0)
+        outcome: str = self.status
         if self.status == "success" and self.tx:
+            outcome = self.algorithm
             tx_data = (
                 self.tx.fee(self.fee_rate),
                 len(self.tx.inputs),
@@ -147,7 +149,7 @@ class SelectionContext:
                 self.tx.excess,
             )
         return (
-            self.status,
+            outcome,
             self.wallet.balance,
             len(self.wallet),
             *tx_data,
@@ -175,8 +177,9 @@ class SelectionContext:
         tx.inputs = [self.wallet.get(id) for id in utxo_ids]
         return tx
 
-    def settle_tx(self, tx: TxDescriptor) -> None:
+    def settle_tx(self, selector: str, tx: TxDescriptor) -> None:
         if not tx.valid(self.fee_rate):
             raise InvalidTransaction
         self.status = "success"
+        self.algorithm = selector
         self.tx = tx

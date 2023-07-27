@@ -92,7 +92,7 @@ def run_simulation(
         finally:
             selection_end_time: float = time.time()
 
-        selection_context.settle_tx(new_tx)
+        selection_context.settle_tx(selector, new_tx)
 
         pending_payments = [
             payment
