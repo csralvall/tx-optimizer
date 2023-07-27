@@ -40,15 +40,17 @@ def run_simulation(
     main_algorithm: CoinSelectionAlgorithm,
     fallback_algorithm: CoinSelectionAlgorithm,
     output_file: TextIO,
+    wallet_log_file: TextIO,
 ) -> None:
     txs_writer = csv.writer(output_file)
     wallet = Wallet()
+    wallet_writer = csv.writer(wallet_log_file)
     total_payments: int = (
         scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
     )
     realized_payments: int = 0
     blocks = scenario.groupby("block_id")
-    for _, block in blocks:
+    for block_id, block in blocks:
         pending_payments: list = []
         fee_rate = FeeRate(btc_to_sat(block.fee_rate.values[0]))
         for _, tx in block.iterrows():
@@ -57,6 +59,7 @@ def run_simulation(
                     output_type=OutputType.P2WPKH, amount=btc_to_sat(tx.amount)
                 )
                 wallet.add(utxo)
+                wallet_writer.writerow((block_id, utxo.wallet_id, utxo.amount))
             else:
                 pending_payments.append(
                     UTxO(
@@ -100,9 +103,11 @@ def run_simulation(
 
         for utxo in new_tx.inputs:
             wallet.pop(utxo)
+            wallet_writer.writerow((block_id, utxo.wallet_id, -utxo.amount))
 
         for utxo in new_tx.change:
             wallet.add(utxo)
+            wallet_writer.writerow((block_id, utxo.wallet_id, utxo.amount))
 
         formatted_processing_time: str = (
             f"{selection_end_time - selection_start_time:.4f}"
@@ -134,9 +139,11 @@ def simulate(ctx, scenario: str, model: str) -> None:
         simulation_scenario: Path = simulation_dir / scenario_path.stem
         simulation_scenario.mkdir(parents=True, exist_ok=True)
         transactions_log_path: Path = simulation_scenario / "transactions.csv"
+        wallet_log_path: Path = simulation_scenario / "wallet.csv"
         with (
             scenario_path.open(mode="r") as csv_input,
             transactions_log_path.open(mode="w") as transactions_log_output,
+            wallet_log_path.open(mode="w") as wallet_log_output,
         ):
             coin_selection_scenario: DataFrame = pandas.read_csv(
                 csv_input, names=["block_id", "amount", "fee_rate"]
@@ -147,6 +154,7 @@ def simulate(ctx, scenario: str, model: str) -> None:
                     main_algorithm=MODELS[model],
                     fallback_algorithm=greatest_first,
                     output_file=transactions_log_output,
+                    wallet_log_file=wallet_log_output,
                 )
 
             for algorithm in MODELS.values():
@@ -155,4 +163,5 @@ def simulate(ctx, scenario: str, model: str) -> None:
                     main_algorithm=algorithm,
                     fallback_algorithm=greatest_first,
                     output_file=transactions_log_output,
+                    wallet_log_file=wallet_log_output,
                 )
