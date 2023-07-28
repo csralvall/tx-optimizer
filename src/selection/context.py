@@ -141,12 +141,12 @@ class SelectionContext:
         if self.status == "success" and self.tx:
             outcome = self.algorithm
             tx_data = (
-                self.tx.fee(self.fee_rate),
                 len(self.tx.inputs),
                 len(self.tx.payments),
                 len(self.tx.change),
                 self.tx.change_amount,
                 self.tx.excess,
+                self.tx.fee(self.fee_rate),
             )
         return (
             outcome,
