@@ -12,6 +12,7 @@ from datatypes.fee_rate import CONSOLIDATION_FEE_RATE, FeeRate
 from datatypes.transaction import TxDescriptor
 from datatypes.utxo import OutputType, UTxO
 from datatypes.wallet import Wallet
+from selection.metrics import waste
 
 LOGGER = structlog.stdlib.get_logger(__name__)
 
@@ -129,6 +130,7 @@ class SelectionContext:
             base_data.pop("status")
             base_data = {
                 **base_data,
+                "waste": waste(self.tx, self.fee_rate),
                 "fee": self.tx.fee(self.fee_rate),
                 **self.tx.digest,
             }
@@ -146,6 +148,7 @@ class SelectionContext:
                 len(self.tx.change),
                 self.tx.excess,
                 self.tx.change_amount,
+                waste(self.tx, self.fee_rate),
                 self.tx.fee(self.fee_rate),
                 self.tx.final_fee_rate,
             )
