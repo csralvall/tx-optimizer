@@ -4,7 +4,7 @@ from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from itertools import accumulate
 from statistics import fmean, pstdev
-from typing import Literal, NamedTuple
+from typing import ClassVar, Literal, NamedTuple
 
 import structlog
 
@@ -54,6 +54,21 @@ class NotEnoughFunds(Exception):
 
 @dataclass
 class SelectionContext:
+    CSV_DATA_HEADER: ClassVar[tuple] = (
+        "algorithm",
+        "balance",
+        "#wallet",
+        "#inputs",
+        "#payments",
+        "#change",
+        "excess",
+        "preserved_effective_value",
+        "waste",
+        "fee",
+        "final_fee_rate",
+        "target_fee_rate",
+    )
+
     wallet: Wallet
     payments: list[UTxO]
     fee_rate: FeeRate
