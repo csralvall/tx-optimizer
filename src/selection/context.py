@@ -144,8 +144,8 @@ class SelectionContext:
                 len(self.tx.inputs),
                 len(self.tx.payments),
                 len(self.tx.change),
-                self.tx.change_amount,
                 self.tx.excess,
+                self.tx.change_amount,
                 self.tx.fee(self.fee_rate),
                 self.tx.final_fee_rate,
             )
