@@ -147,6 +147,7 @@ class SelectionContext:
                 self.tx.change_amount,
                 self.tx.excess,
                 self.tx.fee(self.fee_rate),
+                self.tx.final_fee_rate,
             )
         return (
             outcome,
