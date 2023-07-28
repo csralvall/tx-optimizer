@@ -139,6 +139,9 @@ def simulate(ctx, scenario: str, model: str) -> None:
     if model:
         selectors_to_run = {model: MODELS[model]}
     for scenario_path in scenarios_dir.glob(scenario):
+        coin_selection_scenario: DataFrame = pandas.read_csv(
+            scenario_path, names=["block_id", "amount", "fee_rate"]
+        )
         for selector_name, selector in selectors_to_run.items():
             simulation_scenario: Path = (
                 simulation_dir / scenario_path.stem / selector_name
@@ -149,15 +152,11 @@ def simulate(ctx, scenario: str, model: str) -> None:
             )
             wallet_log_path: Path = simulation_scenario / "wallet.csv"
             with (
-                scenario_path.open(mode="r") as csv_input,
                 transactions_log_path.open(
                     mode="w"
                 ) as transactions_log_output,
                 wallet_log_path.open(mode="w") as wallet_log_output,
             ):
-                coin_selection_scenario: DataFrame = pandas.read_csv(
-                    csv_input, names=["block_id", "amount", "fee_rate"]
-                )
                 run_simulation(
                     scenario=coin_selection_scenario,
                     main_algorithm=selector,
