@@ -135,32 +135,32 @@ def simulate(ctx, scenario: str, model: str) -> None:
     data_root: Path = ctx.get("data_path")
     simulation_dir: Path = data_root / "simulations"
     scenarios_dir: Path = data_root / "scenarios"
+    selectors_to_run: dict[str, CoinSelectionAlgorithm] = MODELS
+    if model:
+        selectors_to_run = {model: MODELS[model]}
     for scenario_path in scenarios_dir.glob(scenario):
-        simulation_scenario: Path = simulation_dir / scenario_path.stem
-        simulation_scenario.mkdir(parents=True, exist_ok=True)
-        transactions_log_path: Path = simulation_scenario / "transactions.csv"
-        wallet_log_path: Path = simulation_scenario / "wallet.csv"
-        with (
-            scenario_path.open(mode="r") as csv_input,
-            transactions_log_path.open(mode="w") as transactions_log_output,
-            wallet_log_path.open(mode="w") as wallet_log_output,
-        ):
-            coin_selection_scenario: DataFrame = pandas.read_csv(
-                csv_input, names=["block_id", "amount", "fee_rate"]
+        for selector_name, selector in selectors_to_run.items():
+            simulation_scenario: Path = (
+                simulation_dir / scenario_path.stem / selector_name
             )
-            if model:
-                return run_simulation(
-                    scenario=coin_selection_scenario,
-                    main_algorithm=MODELS[model],
-                    fallback_algorithm=greatest_first,
-                    output_file=transactions_log_output,
-                    wallet_log_file=wallet_log_output,
+            simulation_scenario.mkdir(parents=True, exist_ok=True)
+            transactions_log_path: Path = (
+                simulation_scenario / "transactions.csv"
+            )
+            wallet_log_path: Path = simulation_scenario / "wallet.csv"
+            with (
+                scenario_path.open(mode="r") as csv_input,
+                transactions_log_path.open(
+                    mode="w"
+                ) as transactions_log_output,
+                wallet_log_path.open(mode="w") as wallet_log_output,
+            ):
+                coin_selection_scenario: DataFrame = pandas.read_csv(
+                    csv_input, names=["block_id", "amount", "fee_rate"]
                 )
-
-            for algorithm in MODELS.values():
                 run_simulation(
                     scenario=coin_selection_scenario,
-                    main_algorithm=algorithm,
+                    main_algorithm=selector,
                     fallback_algorithm=greatest_first,
                     output_file=transactions_log_output,
                     wallet_log_file=wallet_log_output,
