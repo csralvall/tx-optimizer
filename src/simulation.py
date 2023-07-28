@@ -43,8 +43,11 @@ def run_simulation(
     wallet_log_file: TextIO,
 ) -> None:
     txs_writer = csv.writer(output_file)
+    # write csv header
+    txs_writer.writerow(SelectionContext.CSV_DATA_HEADER)
     wallet = Wallet()
     wallet_writer = csv.writer(wallet_log_file)
+    wallet_writer.writerow(("block_id", "wallet_id", "amount"))
     total_payments: int = (
         scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
     )
