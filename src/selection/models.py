@@ -18,6 +18,7 @@ from pulp import (
 
 from datatypes.fee_rate import FeeRate
 from datatypes.transaction import TxDescriptor
+from datatypes.utxo import UTxO
 from selection.context import DustUTxO, SelectionContext
 from selection.metrics import waste
 
@@ -47,8 +48,8 @@ def greatest_first(selection_context: SelectionContext) -> TxDescriptor:
             selection_context.minimal_number_of_inputs,
         )
     ]
-    tx = selection_context.get_tx(selection_input_ids)
-    overpayment = (
+    tx: TxDescriptor = selection_context.get_tx(selection_input_ids)
+    overpayment: int = (
         sum(utxo.amount for utxo in tx.inputs) - selection_context.target
     )
 
@@ -75,7 +76,7 @@ def single_random_draw(selection_context: SelectionContext) -> TxDescriptor:
         if selected_amount > selection_context.target:
             break
 
-    tx = selection_context.get_tx(selected_input_ids)
+    tx: TxDescriptor = selection_context.get_tx(selected_input_ids)
 
     overpayment: int = selected_amount - selection_context.target
 
@@ -141,7 +142,7 @@ def minimize_inputs_without_change(
         for variable in model.variables()
         if variable.value()
     ]
-    tx = selection_context.get_tx(selected_input_ids)
+    tx: TxDescriptor = selection_context.get_tx(selected_input_ids)
 
     tx.excess = int(cast(int, overpayment.value()))
 
@@ -194,7 +195,7 @@ def avoid_change(
         for variable in model.variables()
         if variable.value()
     ]
-    tx = selection_context.get_tx(selected_input_ids)
+    tx: TxDescriptor = selection_context.get_tx(selected_input_ids)
 
     tx.excess = int(cast(int, overpayment.value()))
 
@@ -280,7 +281,7 @@ def minimize_waste_without_change(
         if variable.value():
             selected_input_ids.append(int(variable.name.split("_")[1]))
 
-    tx = selection_context.get_tx(selected_input_ids)
+    tx: TxDescriptor = selection_context.get_tx(selected_input_ids)
 
     overpayment_amount: int = cast(int, overpayment.value())
 
@@ -370,12 +371,12 @@ def minimize_waste_with_change(
         if variable.value():
             selected_input_ids.append(int(variable.name.split("_")[1]))
 
-    tx = selection_context.get_tx(selected_input_ids)
+    tx: TxDescriptor = selection_context.get_tx(selected_input_ids)
 
     overpayment_amount: int = cast(int, overpayment.value())
 
     # overpayment_amount should be above change output costs
-    change_utxo = selection_context.get_change_utxo(overpayment_amount)
+    change_utxo: UTxO = selection_context.get_change_utxo(overpayment_amount)
     tx.change.append(change_utxo)
 
     # recover extra sats given away by rounding errors
@@ -480,11 +481,11 @@ def aim_payment_amount_as_change(
         if variable.value():
             selected_input_ids.append(int(variable.name.split("_")[1]))
 
-    tx = selection_context.get_tx(selected_input_ids)
+    tx: TxDescriptor = selection_context.get_tx(selected_input_ids)
 
     overtarget_amount: int = cast(int, excess.value())
 
-    overpayment_amount = (
+    overpayment_amount: int = (
         tx.input_amount
         - tx.payment_amount
         - tx.fee(selection_context.fee_rate)
