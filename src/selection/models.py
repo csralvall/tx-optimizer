@@ -405,10 +405,10 @@ def aim_payment_amount_as_change(
     total_input = LpAffineExpression(desicion_terms)
 
     low_limit: float = (
-        selection_context.payments_mean - selection_context.payments_stdev
+        selection_context.payments_median - selection_context.payments_stdev
     )
     top_limit: float = (
-        selection_context.payments_mean + selection_context.payments_stdev
+        selection_context.payments_median + selection_context.payments_stdev
     )
     desired_change: int = 0
     for payment in selection_context.payments:

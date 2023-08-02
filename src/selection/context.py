@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from itertools import accumulate
-from statistics import fmean, pstdev
+from statistics import median, pstdev
 from typing import ClassVar, Literal
 
 import structlog
@@ -87,8 +87,8 @@ class SelectionContext:
         return sum(utxo.amount for utxo in self.payments)
 
     @property
-    def payments_mean(self) -> float:
-        return fmean(utxo.amount for utxo in self.payments)
+    def payments_median(self) -> float:
+        return median(utxo.amount for utxo in self.payments)
 
     @property
     def payments_stdev(self) -> float:
