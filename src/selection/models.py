@@ -40,7 +40,6 @@ class CoinSelectionAlgorithm(Protocol):
 
 
 def greatest_first(selection_context: SelectionContext) -> TxDescriptor:
-    fee_rate = selection_context.fee_rate
     selection_input_ids: list[int] = [
         id
         for _, id in islice(
@@ -58,7 +57,7 @@ def greatest_first(selection_context: SelectionContext) -> TxDescriptor:
     except DustUTxO:
         tx.excess = int(overpayment)
 
-    tx.fix_rounding_errors(fee_rate)
+    tx.fix_rounding_errors(selection_context.fee_rate)
 
     return tx
 
