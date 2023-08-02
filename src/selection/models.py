@@ -1,6 +1,7 @@
 import random
 from collections.abc import Callable
 from functools import partial
+from itertools import islice
 from multiprocessing import cpu_count
 from typing import Protocol, cast
 
@@ -40,11 +41,12 @@ class CoinSelectionAlgorithm(Protocol):
 
 def greatest_first(selection_context: SelectionContext) -> TxDescriptor:
     fee_rate = selection_context.fee_rate
-    selection_input_ids = [
-        fee_rated_utxo.utxo_key.id
-        for fee_rated_utxo in selection_context.fee_rated_utxos[
-            : selection_context.minimal_number_of_inputs
-        ]
+    selection_input_ids: list[int] = [
+        id
+        for _, id in islice(
+            selection_context.fee_rated_utxos,
+            selection_context.minimal_number_of_inputs,
+        )
     ]
     tx = selection_context.get_tx(selection_input_ids)
     overpayment = (
@@ -62,12 +64,15 @@ def greatest_first(selection_context: SelectionContext) -> TxDescriptor:
 
 
 def single_random_draw(selection_context: SelectionContext) -> TxDescriptor:
-    random.shuffle(selection_context.fee_rated_utxos)
+    fee_rated_utxos: list[tuple[int, int]] = list(
+        selection_context.fee_rated_utxos
+    )
+    random.shuffle(fee_rated_utxos)
     selected_amount: int = 0
     selected_input_ids: list[int] = []
-    for fee_rated_utxo in selection_context.fee_rated_utxos:
-        selected_amount += fee_rated_utxo.effective_amount
-        selected_input_ids.append(fee_rated_utxo.utxo_key.id)
+    for effective_amount, utxo_id in fee_rated_utxos:
+        selected_amount += effective_amount
+        selected_input_ids.append(utxo_id)
         if selected_amount > selection_context.target:
             break
 
@@ -92,10 +97,10 @@ def minimize_inputs_without_change(
     # Equation Terms
     equation_terms: list[tuple[LpVariable, float]] = [
         (
-            LpVariable(f"x_{fee_rated_utxo.utxo_key.id}", cat="Binary"),
-            fee_rated_utxo.effective_amount,
+            LpVariable(f"x_{utxo_id}", cat="Binary"),
+            effective_amount,
         )
-        for fee_rated_utxo in selection_context.fee_rated_utxos
+        for effective_amount, utxo_id in selection_context.fee_rated_utxos
     ]
 
     # Desicion variable
@@ -153,10 +158,10 @@ def avoid_change(
     # Equation Terms
     desicion_terms: list[tuple[LpVariable, float]] = [
         (
-            LpVariable(f"x_{fee_rated_utxo.utxo_key.id}", cat="Binary"),
-            fee_rated_utxo.effective_amount,
+            LpVariable(f"x_{utxo_id}", cat="Binary"),
+            effective_amount,
         )
-        for fee_rated_utxo in selection_context.fee_rated_utxos
+        for effective_amount, utxo_id in selection_context.fee_rated_utxos
     ]
 
     total_input = LpAffineExpression(desicion_terms)
@@ -206,10 +211,10 @@ def minimize_waste_without_change(
     # Overpayment Terms
     desicion_terms: list[tuple[LpVariable, float]] = [
         (
-            LpVariable(f"x_{fee_rated_utxo.utxo_key.id}", cat="Binary"),
-            fee_rated_utxo.effective_amount,
+            LpVariable(f"x_{utxo_id}", cat="Binary"),
+            effective_amount,
         )
-        for fee_rated_utxo in selection_context.fee_rated_utxos
+        for effective_amount, utxo_id in selection_context.fee_rated_utxos
     ]
 
     desicion_variables = [
@@ -295,10 +300,10 @@ def minimize_waste_with_change(
     # Overpayment Terms
     desicion_terms: list[tuple[LpVariable, int]] = [
         (
-            LpVariable(f"x_{fee_rated_utxo.utxo_key.id}", cat="Binary"),
-            fee_rated_utxo.effective_amount,
+            LpVariable(f"x_{utxo_id}", cat="Binary"),
+            effective_amount,
         )
-        for fee_rated_utxo in selection_context.fee_rated_utxos
+        for effective_amount, utxo_id in selection_context.fee_rated_utxos
     ]
 
     desicion_variables = [
@@ -387,10 +392,10 @@ def aim_payment_amount_as_change(
     # Overpayment Terms
     desicion_terms: list[tuple[LpVariable, float]] = [
         (
-            LpVariable(f"x_{fee_rated_utxo.utxo_key.id}", cat="Binary"),
-            fee_rated_utxo.effective_amount,
+            LpVariable(f"x_{utxo_id}", cat="Binary"),
+            effective_amount,
         )
-        for fee_rated_utxo in selection_context.fee_rated_utxos
+        for effective_amount, utxo_id in selection_context.fee_rated_utxos
     ]
 
     desicion_variables = [

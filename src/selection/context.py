@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from itertools import accumulate
 from statistics import fmean, pstdev
-from typing import ClassVar, Literal, NamedTuple
+from typing import ClassVar, Literal
 
 import structlog
+from sortedcontainers import SortedList
 
 from datatypes.fee_rate import CONSOLIDATION_FEE_RATE, FeeRate
 from datatypes.transaction import TxDescriptor
@@ -17,24 +19,6 @@ from selection.metrics import waste
 LOGGER = structlog.stdlib.get_logger(__name__)
 
 TARGET_FEE_RATE_KEY: str = "TFR"
-
-
-class UTxOKey(NamedTuple):
-    amount: float
-    id: int
-
-
-@dataclass
-class FeeRatedUTxO:
-    utxo_key: UTxOKey
-    effective_amount: int
-
-    @classmethod
-    def new(cls, utxo: UTxO, fee_rate: FeeRate) -> FeeRatedUTxO:
-        return FeeRatedUTxO(
-            utxo_key=UTxOKey(amount=utxo.amount, id=utxo.wallet_id),
-            effective_amount=utxo.amount - utxo.input_fee(fee_rate),
-        )
 
 
 class InvalidTransaction(Exception):
@@ -84,14 +68,19 @@ class SelectionContext:
         self.tx = min_tx
         self._target = self.payment_amount + self._minimal_tx_fees
         self._change_template = UTxO(output_type=self.change_type, amount=0)
+        fee_rated_utxos_pool = SortedList(key=lambda x: -x[0])
+        for utxo in self.wallet:
+            effective_amount: int = utxo.amount - utxo.input_fee(self.fee_rate)
+            fee_rated_utxos_pool.add((effective_amount, utxo.wallet_id))
+        self._fee_rated_utxos = fee_rated_utxos_pool
 
     @property
     def fee_rate_delta(self) -> FeeRate:
         return self.fee_rate - CONSOLIDATION_FEE_RATE
 
     @property
-    def fee_rated_utxos(self) -> list[FeeRatedUTxO]:
-        return [FeeRatedUTxO.new(utxo, self.fee_rate) for utxo in self.wallet]
+    def fee_rated_utxos(self) -> Iterable[tuple[int, int]]:
+        yield from iter(self._fee_rated_utxos)
 
     @property
     def payment_amount(self) -> int:
@@ -116,7 +105,7 @@ class SelectionContext:
     @property
     def minimal_number_of_inputs(self) -> int:
         utxos_subsums: accumulate[int] = accumulate(
-            fr_utxo.effective_amount for fr_utxo in self.fee_rated_utxos
+            effective_amount for effective_amount, _ in self.fee_rated_utxos
         )
 
         minimal_number_of_inputs: int = 0
