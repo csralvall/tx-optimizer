@@ -34,6 +34,13 @@ MODELS: dict[str, CoinSelectionAlgorithm] = {
     "avoid_change": avoid_change,
 }
 
+UTXOS_CSV_DATA_HEADER = ("block_id", "wallet_id", "condition", "amount")
+PAYMENT_REQUEST = "PAYMENT_REQUEST"
+INCOME = "INCOME"
+TX_PAYMENT = "PAYMENT"
+TX_INPUT = "INPUT"
+TX_CHANGE = "CHANGE"
+
 
 def run_simulation(
     scenario: DataFrame,
@@ -47,7 +54,7 @@ def run_simulation(
     txs_writer.writerow(SelectionContext.CSV_DATA_HEADER)
     wallet = Wallet()
     wallet_writer = csv.writer(wallet_log_file)
-    wallet_writer.writerow(("block_id", "wallet_id", "amount"))
+    wallet_writer.writerow(UTXOS_CSV_DATA_HEADER)
     total_payments: int = (
         scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
     )
@@ -62,13 +69,17 @@ def run_simulation(
                     output_type=OutputType.P2WPKH, amount=btc_to_sat(tx.amount)
                 )
                 wallet.add(utxo)
-                wallet_writer.writerow((block_id, utxo.wallet_id, utxo.amount))
+                wallet_writer.writerow(
+                    (block_id, utxo.wallet_id, INCOME, utxo.amount)
+                )
             else:
-                pending_payments.append(
-                    UTxO(
-                        output_type=OutputType.P2WPKH,
-                        amount=btc_to_sat(abs(tx.amount)),
-                    )
+                utxo = UTxO(
+                    output_type=OutputType.P2WPKH,
+                    amount=btc_to_sat(abs(tx.amount)),
+                )
+                pending_payments.append(utxo)
+                wallet_writer.writerow(
+                    (block_id, -1, PAYMENT_REQUEST, utxo.amount)
                 )
 
         if not pending_payments:
@@ -104,13 +115,20 @@ def run_simulation(
         ]
         txs_writer.writerow(selection_context.to_csv())
 
+        for utxo in new_tx.payments:
+            wallet_writer.writerow((block_id, -1, TX_PAYMENT, utxo.amount))
+
         for utxo in new_tx.inputs:
             wallet.pop(utxo)
-            wallet_writer.writerow((block_id, utxo.wallet_id, -utxo.amount))
+            wallet_writer.writerow(
+                (block_id, utxo.wallet_id, TX_INPUT, utxo.amount)
+            )
 
         for utxo in new_tx.change:
             wallet.add(utxo)
-            wallet_writer.writerow((block_id, utxo.wallet_id, utxo.amount))
+            wallet_writer.writerow(
+                (block_id, utxo.wallet_id, TX_CHANGE, utxo.amount)
+            )
 
         formatted_processing_time: str = (
             f"{selection_end_time - selection_start_time:.4f}"
