@@ -19,6 +19,7 @@ from selection.metrics import waste
 LOGGER = structlog.stdlib.get_logger(__name__)
 
 TARGET_FEE_RATE_KEY: str = "TFR"
+NEGATIVE_EFFECTIVE_VALUED_INPUT_KEY: str = "NEV"
 
 
 class InvalidTransaction(Exception):
@@ -45,6 +46,7 @@ class SelectionContext:
         "#inputs",
         "#payments",
         "#change",
+        "#negative_effective_valued_utxos",
         "excess",
         "preserved_effective_value",
         "waste",
@@ -81,6 +83,12 @@ class SelectionContext:
     @property
     def fee_rated_utxos(self) -> Iterable[tuple[int, int]]:
         yield from iter(self._fee_rated_utxos)
+
+    @property
+    def negative_effective_valued_utxos(self) -> Iterable[int]:
+        for effective_value, id in self.fee_rated_utxos:
+            if effective_value < 0:
+                yield id
 
     @property
     def payment_amount(self) -> int:
@@ -136,6 +144,8 @@ class SelectionContext:
                 **base_data,
                 "waste": waste(self.tx, self.fee_rate),
                 "fee": self.tx.fee(self.fee_rate),
+                NEGATIVE_EFFECTIVE_VALUED_INPUT_KEY: self.negative_effective_valued_inputs
+                or 0,
                 **self.tx.digest,
             }
         base_data[TARGET_FEE_RATE_KEY] = self.fee_rate
@@ -150,6 +160,7 @@ class SelectionContext:
                 len(self.tx.inputs),
                 len(self.tx.payments),
                 len(self.tx.change),
+                self.negative_effective_valued_inputs or 0,
                 self.tx.excess,
                 self.tx.change_amount,
                 waste(self.tx, self.fee_rate),
@@ -188,6 +199,10 @@ class SelectionContext:
     def settle_tx(self, selector: str, tx: TxDescriptor) -> None:
         if not tx.valid(self.fee_rate):
             raise InvalidTransaction
+        input_ids: list[int] = [utxo.wallet_id for utxo in tx.inputs]
+        self.negative_effective_valued_inputs = sum(
+            1 for id in input_ids if id in self.negative_effective_valued_utxos
+        )
         self.status = "success"
         self.algorithm = selector
         self.tx = tx
