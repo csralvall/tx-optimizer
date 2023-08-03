@@ -48,7 +48,7 @@ class SelectionContext:
         "#change",
         "#negative_effective_valued_utxos",
         "excess",
-        "preserved_effective_value",
+        "change_effective_value",
         "waste",
         "fee",
         "final_fee_rate",
