@@ -24,7 +24,7 @@ from selection.models import (
 )
 from utils.bitcoin import btc_to_sat
 
-LOGGER = structlog.stdlib.get_logger("simulation")
+LOGGER = structlog.stdlib.get_logger(__name__)
 
 MODELS: dict[str, CoinSelectionAlgorithm] = {
     "greatest_first": greatest_first,
