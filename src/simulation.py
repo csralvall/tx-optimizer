@@ -58,7 +58,7 @@ def run_simulation(
     total_payments: int = (
         scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
     )
-    realized_payments: int = 0
+    processed_payments: int = 0
     blocks = scenario.groupby("block_id")
     for block_id, block in blocks:
         pending_payments: list = []
@@ -94,6 +94,7 @@ def run_simulation(
             selection_context.funds_are_enough()
         except NotEnoughFunds as e:
             LOGGER.warn(str(e), **selection_context.digest)
+            processed_payments += 1
             continue
 
         selection_start_time: float = time.time()
@@ -134,8 +135,8 @@ def run_simulation(
         formatted_processing_time: str = (
             f"{selection_end_time - selection_start_time:.4f}"
         )
-        realized_payments += 1
-        info_str: str = f"{selector} - {realized_payments}/{total_payments}"
+        processed_payments += 1
+        info_str: str = f"{selector} - {processed_payments}/{total_payments}"
         LOGGER.info(
             info_str,
             processing_time=formatted_processing_time,
