@@ -46,15 +46,15 @@ def run_simulation(
     scenario: DataFrame,
     main_algorithm: CoinSelectionAlgorithm,
     fallback_algorithm: CoinSelectionAlgorithm,
-    output_file: TextIO,
-    wallet_log_file: TextIO,
+    transactions_output: TextIO,
+    utxos_output: TextIO,
 ) -> None:
-    txs_writer = csv.writer(output_file)
+    summary_writer = csv.writer(transactions_output)
     # write csv header
-    txs_writer.writerow(SelectionContext.CSV_DATA_HEADER)
+    summary_writer.writerow(SelectionContext.CSV_DATA_HEADER)
     wallet = Wallet()
-    wallet_writer = csv.writer(wallet_log_file)
-    wallet_writer.writerow(UTXOS_CSV_DATA_HEADER)
+    utxos_writer = csv.writer(utxos_output)
+    utxos_writer.writerow(UTXOS_CSV_DATA_HEADER)
     total_payments: int = (
         scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
     )
@@ -69,7 +69,7 @@ def run_simulation(
                     output_type=OutputType.P2WPKH, amount=btc_to_sat(tx.amount)
                 )
                 wallet.add(utxo)
-                wallet_writer.writerow(
+                utxos_writer.writerow(
                     (block_id, utxo.wallet_id, INCOME, utxo.amount)
                 )
             else:
@@ -78,7 +78,7 @@ def run_simulation(
                     amount=btc_to_sat(abs(tx.amount)),
                 )
                 pending_payments.append(utxo)
-                wallet_writer.writerow(
+                utxos_writer.writerow(
                     (block_id, -1, PAYMENT_REQUEST, utxo.amount)
                 )
 
@@ -108,25 +108,26 @@ def run_simulation(
 
         selection_context.settle_tx(selector, new_tx)
 
+        summary_writer.writerow(selection_context.to_csv())
+
         pending_payments = [
             payment
             for payment in pending_payments
             if payment not in new_tx.payments
         ]
-        txs_writer.writerow(selection_context.to_csv())
 
         for utxo in new_tx.payments:
-            wallet_writer.writerow((block_id, -1, TX_PAYMENT, utxo.amount))
+            utxos_writer.writerow((block_id, -1, TX_PAYMENT, utxo.amount))
 
         for utxo in new_tx.inputs:
             wallet.pop(utxo)
-            wallet_writer.writerow(
+            utxos_writer.writerow(
                 (block_id, utxo.wallet_id, TX_INPUT, utxo.amount)
             )
 
         for utxo in new_tx.change:
             wallet.add(utxo)
-            wallet_writer.writerow(
+            utxos_writer.writerow(
                 (block_id, utxo.wallet_id, TX_CHANGE, utxo.amount)
             )
 
@@ -168,20 +169,22 @@ def simulate(ctx, scenario: str, model: str) -> None:
                 simulation_dir / scenario_path.stem / selector_name
             )
             simulation_scenario.mkdir(parents=True, exist_ok=True)
-            transactions_log_path: Path = (
-                simulation_scenario / "transactions.csv"
+            transactions_summary_path: Path = (
+                simulation_scenario / "transactions_summary.csv"
             )
-            wallet_log_path: Path = simulation_scenario / "wallet.csv"
+            utxo_activity_path: Path = (
+                simulation_scenario / "utxo_activity.csv"
+            )
             with (
-                transactions_log_path.open(
+                transactions_summary_path.open(
                     mode="w"
-                ) as transactions_log_output,
-                wallet_log_path.open(mode="w") as wallet_log_output,
+                ) as transactions_output,
+                utxo_activity_path.open(mode="w") as utxos_output,
             ):
                 run_simulation(
                     scenario=coin_selection_scenario,
                     main_algorithm=selector,
                     fallback_algorithm=greatest_first,
-                    output_file=transactions_log_output,
-                    wallet_log_file=wallet_log_output,
+                    transactions_output=transactions_output,
+                    utxos_output=utxos_output,
                 )
