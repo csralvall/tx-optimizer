@@ -156,7 +156,8 @@ def run_simulation(
 @click.pass_obj
 def simulate(ctx, scenario: str, model: str) -> None:
     data_root: Path = ctx.get("data_path")
-    simulation_dir: Path = data_root / "simulations"
+    simulation_dir: Path = data_root / "simulations" / f"{int(time.time())}"
+    simulation_dir.mkdir(parents=True, exist_ok=True)
     scenarios_dir: Path = data_root / "scenarios"
     selectors_to_run: dict[str, CoinSelectionAlgorithm] = MODELS
     if model:
