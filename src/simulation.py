@@ -1,4 +1,5 @@
 import csv
+import json
 import time
 from pathlib import Path
 from typing import TextIO
@@ -23,6 +24,8 @@ from selection.models import (
     single_random_draw,
 )
 from utils.bitcoin import btc_to_sat
+from utils.hardware import get_hardware_spec
+from utils.time import human_readable_elapsed_time
 
 LOGGER = structlog.stdlib.get_logger(__name__)
 
@@ -155,6 +158,7 @@ def run_simulation(
 )
 @click.pass_obj
 def simulate(ctx, scenario: str, model: str) -> None:
+    simulation_summary: dict = get_hardware_spec()
     data_root: Path = ctx.get("data_path")
     simulation_dir: Path = data_root / "simulations" / f"{int(time.time())}"
     simulation_dir.mkdir(parents=True, exist_ok=True)
@@ -162,6 +166,7 @@ def simulate(ctx, scenario: str, model: str) -> None:
     selectors_to_run: dict[str, CoinSelectionAlgorithm] = MODELS
     if model:
         selectors_to_run = {model: MODELS[model]}
+    simulation_start_time: float = time.time()
     for scenario_path in scenarios_dir.glob(scenario):
         coin_selection_scenario: DataFrame = pandas.read_csv(
             scenario_path, names=["block_id", "amount", "fee_rate"]
@@ -190,3 +195,12 @@ def simulate(ctx, scenario: str, model: str) -> None:
                     transactions_output=transactions_output,
                     utxos_output=utxos_output,
                 )
+
+    simulation_end_time: float = time.time()
+    elapsed_time: float = simulation_end_time - simulation_start_time
+    simulation_summary[
+        "simulation_elapsed_time"
+    ] = human_readable_elapsed_time(elapsed_time)
+    simulation_summary_path: Path = simulation_dir / "simulation_summary.json"
+    with simulation_summary_path.open(mode="w") as simulation_summary_file:
+        json.dump(simulation_summary, simulation_summary_file)
