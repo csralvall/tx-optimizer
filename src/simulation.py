@@ -54,10 +54,17 @@ class Simulation:
     TX_INPUT: ClassVar[str] = "INPUT"
     TX_CHANGE: ClassVar[str] = "CHANGE"
 
-    def __init__(self, path: Path, scenario: str = "*", model: str = ""):
+    def __init__(
+        self,
+        path: Path,
+        scenario: str = "*",
+        model: str = "",
+        excluded: frozenset[tuple[str, str]] = frozenset(),
+    ):
         self.path: Path = path
         self.scenario: str = scenario
         self.model: str = model
+        self.excluded: frozenset[tuple[str, str]] = excluded
 
     @property
     def _selectors(
@@ -72,6 +79,14 @@ class Simulation:
     def _scenarios(self) -> Generator[Path, None, None]:
         scenarios_dir: Path = self.path / "scenarios"
         yield from scenarios_dir.glob(self.scenario)
+
+    def is_excluded(self, scenario_name: str, selector_name: str) -> bool:
+        partially_excluded: bool = (
+            scenario_name,
+            selector_name,
+        ) in self.excluded
+        totally_excluded: bool = ("*", selector_name) in self.excluded
+        return partially_excluded or totally_excluded
 
     def __enter__(self) -> Simulation:
         self.simulation_summary: dict = get_hardware_spec()
@@ -102,6 +117,9 @@ class Simulation:
                 scenario_path, names=["block_id", "amount", "fee_rate"]
             )
             for selector_name, selector in self._selectors:
+                if self.is_excluded(scenario_path.stem, selector_name):
+                    continue
+
                 simulation_scenario: Path = (
                     self.simulation_dir / scenario_path.stem / selector_name
                 )
@@ -240,10 +258,28 @@ class Simulation:
 @click.option(
     "--model", default="", help="Select a model to run the scenarios."
 )
+@click.option(
+    "--exclude",
+    type=str,
+    default=[""],
+    multiple=True,
+    help="""
+    Specify combinations of scenarios and models to avoid.
+    Use * in scenarios to disable the model completely.
+    Format: <scenario>,<model>.
+    """,
+)
 @click.pass_obj
-def simulate(ctx, scenario: str, model: str) -> None:
+def simulate(ctx, scenario: str, model: str, exclude: list[str]) -> None:
+    excluded: set = set()
+    for excluded_combination in exclude:
+        excluded.add(tuple(excluded_combination.split(",")))
+
     data_root: Path = ctx.get("data_path")
     with Simulation(
-        path=data_root, scenario=scenario, model=model
+        path=data_root,
+        scenario=scenario,
+        model=model,
+        excluded=frozenset(excluded),
     ) as simulation:
         simulation.run()
