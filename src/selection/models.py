@@ -13,6 +13,7 @@ from pulp import (
     LpProblem,
     LpSolver,
     LpVariable,
+    PulpSolverError,
     lpSum,
 )
 
@@ -21,6 +22,7 @@ from datatypes.transaction import TxDescriptor
 from datatypes.utxo import UTxO
 from selection.context import DustUTxO, SelectionContext
 from selection.metrics import waste
+from utils.retries import retry
 
 LOGGER = structlog.stdlib.get_logger(__name__)
 
@@ -30,6 +32,23 @@ DEFAULT_SOLVER = PULP_CBC_CMD(msg=False, timeLimit=15, threads=cpu_count() - 1)
 class UTxOSelectionFailed(Exception):
     "Raised when the solution is infeasible with the restrictions given."
     pass
+
+
+class InternalSolverError(Exception):
+    """Raised when the underlying solver used by Pulp fails."""
+
+    def __init__(self, model: LpProblem):
+        self.model: LpProblem = model
+
+    def __repr__(self) -> str:
+        exc_name: str = self.__class__.__name__
+        model_name: str = self.model.name
+        model_num_variables: int = self.model.numVariables()
+        model_num_constraints: int = self.model.numConstraints()
+        return f"{exc_name}: {model_name}(variables={model_num_variables}, constraints={model_num_constraints})"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class CoinSelectionAlgorithm(Protocol):
@@ -90,6 +109,10 @@ def single_random_draw(selection_context: SelectionContext) -> TxDescriptor:
     return tx
 
 
+@retry(
+    exceptions_to_retry=(InternalSolverError,),
+    exceptions_to_raise=(UTxOSelectionFailed,),
+)
 def minimize_inputs_without_change(
     selection_context: SelectionContext,
     solver: LpSolver = DEFAULT_SOLVER,
@@ -131,8 +154,12 @@ def minimize_inputs_without_change(
         "avoid_change_constraint",
     )
 
-    # Run solver
-    model.solve(solver)
+    try:
+        # Run solver
+        model.solve(solver)
+    except PulpSolverError as e:
+        LOGGER.exception(str(e))
+        raise InternalSolverError(model) from e
 
     if model.status < 0:
         raise UTxOSelectionFailed
@@ -151,6 +178,10 @@ def minimize_inputs_without_change(
     return tx
 
 
+@retry(
+    exceptions_to_retry=(InternalSolverError,),
+    exceptions_to_raise=(UTxOSelectionFailed,),
+)
 def avoid_change(
     selection_context: SelectionContext,
     solver: LpSolver = DEFAULT_SOLVER,
@@ -184,8 +215,12 @@ def avoid_change(
         "avoid_change_constraint",
     )
 
-    # Run solver
-    model.solve(solver)
+    try:
+        # Run solver
+        model.solve(solver)
+    except PulpSolverError as e:
+        LOGGER.exception(str(e))
+        raise InternalSolverError(model) from e
 
     if model.status < 0:
         raise UTxOSelectionFailed
@@ -204,6 +239,10 @@ def avoid_change(
     return tx
 
 
+@retry(
+    exceptions_to_retry=(InternalSolverError,),
+    exceptions_to_raise=(UTxOSelectionFailed,),
+)
 def minimize_waste_without_change(
     selection_context: SelectionContext,
     solver: LpSolver = DEFAULT_SOLVER,
@@ -267,8 +306,12 @@ def minimize_waste_without_change(
             f"consolidate_variables_constraint_{idx}",
         )
 
-    # Run solver
-    model.solve(solver)
+    try:
+        # Run solver
+        model.solve(solver)
+    except PulpSolverError as e:
+        LOGGER.exception(str(e))
+        raise InternalSolverError(model) from e
 
     if model.status < 0:
         raise UTxOSelectionFailed
@@ -293,6 +336,10 @@ def minimize_waste_without_change(
     return tx
 
 
+@retry(
+    exceptions_to_retry=(InternalSolverError,),
+    exceptions_to_raise=(UTxOSelectionFailed,),
+)
 def minimize_waste_with_change(
     selection_context: SelectionContext,
     solver: LpSolver = DEFAULT_SOLVER,
@@ -357,8 +404,12 @@ def minimize_waste_with_change(
             f"consolidate_variables_constraint_{idx}",
         )
 
-    # Run solver
-    model.solve(solver)
+    try:
+        # Run solver
+        model.solve(solver)
+    except PulpSolverError as e:
+        LOGGER.exception(str(e))
+        raise InternalSolverError(model) from e
 
     if model.status < 0:
         raise UTxOSelectionFailed
@@ -385,6 +436,10 @@ def minimize_waste_with_change(
     return tx
 
 
+@retry(
+    exceptions_to_retry=(InternalSolverError,),
+    exceptions_to_raise=(UTxOSelectionFailed,),
+)
 def aim_payment_amount_as_change(
     selection_context: SelectionContext,
     solver: LpSolver = DEFAULT_SOLVER,
@@ -467,8 +522,12 @@ def aim_payment_amount_as_change(
             f"consolidate_variables_constraint_{idx}",
         )
 
-    # Run solver
-    model.solve(solver)
+    try:
+        # Run solver
+        model.solve(solver)
+    except PulpSolverError as e:
+        LOGGER.exception(str(e))
+        raise InternalSolverError(model) from e
 
     if model.status < 0:
         raise UTxOSelectionFailed

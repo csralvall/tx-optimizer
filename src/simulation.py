@@ -19,6 +19,7 @@ from datatypes.wallet import Wallet
 from selection.context import NotEnoughFunds, SelectionContext
 from selection.models import (
     CoinSelectionAlgorithm,
+    InternalSolverError,
     UTxOSelectionFailed,
     avoid_change,
     greatest_first,
@@ -183,7 +184,11 @@ class Simulation:
                         selection_context=selection_context
                     )
                     selector = f"{main_algorithm.__name__}"
-                except UTxOSelectionFailed:
+                except (UTxOSelectionFailed, InternalSolverError) as e:
+                    if isinstance(e, InternalSolverError):
+                        e.model.to_json(
+                            failed_txs_path / f"txs_{block_id}.json"
+                        )
                     new_tx = fallback_algorithm(
                         selection_context=selection_context
                     )
@@ -219,11 +224,8 @@ class Simulation:
                     )
 
                 processed_payments += 1
-                info_str: str = (
-                    f"{selector} - {processed_payments}/{total_payments}"
-                )
                 LOGGER.info(
-                    info_str,
+                    f"{selector} - {processed_payments}/{total_payments}",
                     processing_time=f"{selection_end_time - selection_start_time:.4f}",
                     **selection_context.digest,
                 )
