@@ -30,7 +30,8 @@ DEFAULT_SOLVER = PULP_CBC_CMD(msg=False, timeLimit=15, threads=cpu_count() - 1)
 
 
 class UTxOSelectionFailed(Exception):
-    "Raised when the solution is infeasible with the restrictions given."
+    """Raised when the solution is infeasible with the given restrictions."""
+
     pass
 
 
