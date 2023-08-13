@@ -91,7 +91,9 @@ class Simulation:
     def __enter__(self) -> Simulation:
         self.simulation_summary: dict = get_hardware_spec()
         self.simulation_dir: Path = (
-            self.path / "simulations" / f"{time.strftime('%Y_%m_%d-%H_%M_%S')}"
+            self.path
+            / "simulations"
+            / f"{time.strftime('%d_%m_%Y__%H_%M_%S')}"
         )
         self.simulation_dir.mkdir(parents=True, exist_ok=True)
         return self
