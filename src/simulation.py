@@ -107,6 +107,7 @@ class SimulationBench:
             coin_selection_scenario: DataFrame = pandas.read_csv(
                 scenario_path, names=["block_id", "amount", "fee_rate"]
             )
+            coin_selection_scenario.name = scenario_path.stem
             for selector_name, selector in self._selectors:
                 if self.is_excluded(scenario_path.stem, selector_name):
                     continue
@@ -144,6 +145,7 @@ class Simulation:
         fallback_algorithm: CoinSelectionAlgorithm,
     ) -> None:
         self.scenario: DataFrame = scenario
+        self.scenario_name = getattr(self.scenario, "name", "")
         self.main_algorithm: CoinSelectionAlgorithm = main_algorithm
         self.fallback_algorithm: CoinSelectionAlgorithm = fallback_algorithm
         self.processed_payments: int = 0
@@ -261,7 +263,7 @@ class Simulation:
             self.update(block_id, new_tx)
 
             LOGGER.info(
-                f"{selector} - {self.processed_payments}/{self.total_payments}",
+                f"{selector} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
                 processing_time=f"{elapsed_time:.4f}",
                 **selection_context.digest,
             )
