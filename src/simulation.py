@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import time
-from collections.abc import Generator
+from collections.abc import Generator, Hashable
 from pathlib import Path
 from typing import ClassVar
 
@@ -34,7 +34,7 @@ from utils.time import human_readable_elapsed_time
 LOGGER = structlog.stdlib.get_logger(__name__)
 
 
-class Simulation:
+class SimulationBench:
     MODELS: ClassVar[dict[str, CoinSelectionAlgorithm]] = {
         "greatest-first": greatest_first,
         "single-random-draw": single_random_draw,
@@ -42,17 +42,6 @@ class Simulation:
         "maximize-effective_value": maximize_effective_value,
         "avoid-change": avoid_change,
     }
-    UTXOS_ACTIVITY_CSV_HEADER: ClassVar[tuple[str, str, str, str]] = (
-        "block_id",
-        "wallet_id",
-        "condition",
-        "amount",
-    )
-    PAYMENT_REQUEST: ClassVar[str] = "PAYMENT_REQUEST"
-    INCOME: ClassVar[str] = "INCOME"
-    TX_PAYMENT: ClassVar[str] = "PAYMENT"
-    TX_INPUT: ClassVar[str] = "INPUT"
-    TX_CHANGE: ClassVar[str] = "CHANGE"
 
     def __init__(
         self,
@@ -88,7 +77,7 @@ class Simulation:
         totally_excluded: bool = ("*", selector_name) in self.excluded
         return partially_excluded or totally_excluded
 
-    def __enter__(self) -> Simulation:
+    def __enter__(self) -> SimulationBench:
         self.simulation_summary: dict = get_hardware_spec()
         self.simulation_dir: Path = (
             self.path
@@ -112,7 +101,7 @@ class Simulation:
         with simulation_summary_path.open(mode="w") as simulation_summary_file:
             json.dump(self.simulation_summary, simulation_summary_file)
 
-    def run(self) -> None:
+    def __iter__(self) -> Generator[Simulation, None, None]:
         self.simulation_start_time: float = time.time()
         for scenario_path in self._scenarios:
             coin_selection_scenario: DataFrame = pandas.read_csv(
@@ -122,133 +111,170 @@ class Simulation:
                 if self.is_excluded(scenario_path.stem, selector_name):
                     continue
 
-                simulation_scenario: Path = (
+                simulation_path: Path = (
                     self.simulation_dir / scenario_path.stem / selector_name
                 )
-                simulation_scenario.mkdir(parents=True, exist_ok=True)
-                self._sim(
+                simulation_path.mkdir(parents=True, exist_ok=True)
+                yield Simulation(
+                    output_dir=simulation_path,
                     scenario=coin_selection_scenario,
                     main_algorithm=selector,
                     fallback_algorithm=single_random_draw,
-                    output_dir=simulation_scenario,
                 )
 
-    def _sim(
+
+class Simulation:
+    UTXOS_ACTIVITY_CSV_HEADER: ClassVar[tuple[str, str, str, str]] = (
+        "block_id",
+        "wallet_id",
+        "condition",
+        "amount",
+    )
+    PAYMENT_REQUEST: ClassVar[str] = "PAYMENT_REQUEST"
+    INCOME: ClassVar[str] = "INCOME"
+    TX_PAYMENT: ClassVar[str] = "PAYMENT"
+    TX_INPUT: ClassVar[str] = "INPUT"
+    TX_CHANGE: ClassVar[str] = "CHANGE"
+
+    def __init__(
         self,
+        output_dir: Path,
         scenario: DataFrame,
         main_algorithm: CoinSelectionAlgorithm,
         fallback_algorithm: CoinSelectionAlgorithm,
-        output_dir: Path,
     ) -> None:
-        failed_txs_path: Path = output_dir / "failed_txs"
-        failed_txs_path.mkdir(parents=True, exist_ok=True)
-        with (
-            (output_dir / "transactions_summary.csv").open(
-                mode="w"
-            ) as transactions_output,
-            (output_dir / "utxo_activity.csv").open(mode="w") as utxos_output,
-        ):
-            summary_writer = csv.writer(transactions_output)
-            # write csv header
-            summary_writer.writerow(SelectionContext.CSV_DATA_HEADER)
-            wallet = Wallet()
-            utxos_writer = csv.writer(utxos_output)
-            utxos_writer.writerow(self.UTXOS_ACTIVITY_CSV_HEADER)
-            total_payments: int = (
-                scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
+        self.scenario: DataFrame = scenario
+        self.main_algorithm: CoinSelectionAlgorithm = main_algorithm
+        self.fallback_algorithm: CoinSelectionAlgorithm = fallback_algorithm
+        self.processed_payments: int = 0
+        self.total_payments: int = (
+            scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
+        )
+        self.wallet = Wallet()
+        self.pending_payments = []
+        self.failed_txs_path: Path = output_dir / "failed_txs"
+        self.txs_path: Path = output_dir / "transactions_summary.csv"
+        self.utxos_path: Path = output_dir / "utxo_activity.csv"
+
+    def process_block(self, block_id: Hashable, block: DataFrame) -> None:
+        for _, tx in block.iterrows():
+            utxo = UTxO(
+                output_type=OutputType.P2WPKH,
+                amount=btc_to_sat(abs(tx.amount)),
             )
-            processed_payments: int = 0
-            pending_payments: list = []
-            for block_id, block in scenario.groupby("block_id"):
-                for _, tx in block.iterrows():
-                    utxo = UTxO(
-                        output_type=OutputType.P2WPKH,
-                        amount=btc_to_sat(abs(tx.amount)),
+            if tx.amount > 0:
+                self.wallet.add(utxo)
+                self.utxos_writer.writerow(
+                    (
+                        block_id,
+                        utxo.wallet_id,
+                        self.INCOME,
+                        utxo.amount,
                     )
-                    if tx.amount > 0:
-                        wallet.add(utxo)
-                        utxos_writer.writerow(
-                            (
-                                block_id,
-                                utxo.wallet_id,
-                                self.INCOME,
-                                utxo.amount,
-                            )
-                        )
-                    else:
-                        pending_payments.append(utxo)
-                        utxos_writer.writerow(
-                            (block_id, -1, self.PAYMENT_REQUEST, utxo.amount)
-                        )
-
-                if not pending_payments:
-                    continue
-
-                new_tx: TxDescriptor
-                selector: str
-                selection_context = SelectionContext(
-                    wallet=wallet,
-                    payments=pending_payments,
-                    fee_rate=FeeRate(btc_to_sat(block.fee_rate.values[0])),
                 )
-                try:
-                    selection_context.funds_are_enough()
-                except NotEnoughFunds as e:
-                    LOGGER.warn(str(e), **selection_context.digest)
-                    processed_payments += 1
-                    continue
-
-                selection_start_time: float = time.time()
-                try:
-                    new_tx = main_algorithm(
-                        selection_context=selection_context
-                    )
-                    selector = f"{main_algorithm.__name__}"
-                except (UTxOSelectionFailed, InternalSolverError) as e:
-                    if isinstance(e, InternalSolverError):
-                        e.model.to_json(
-                            failed_txs_path / f"txs_{block_id}.json"
-                        )
-                    new_tx = fallback_algorithm(
-                        selection_context=selection_context
-                    )
-                    selector = f"{fallback_algorithm.__name__}"
-                finally:
-                    selection_end_time: float = time.time()
-
-                selection_context.settle_tx(selector, new_tx)
-
-                summary_writer.writerow(selection_context.to_csv())
-
-                pending_payments = [
-                    payment
-                    for payment in pending_payments
-                    if payment not in new_tx.payments
-                ]
-
-                for utxo in new_tx.payments:
-                    utxos_writer.writerow(
-                        (block_id, -1, self.TX_PAYMENT, utxo.amount)
-                    )
-
-                for utxo in new_tx.inputs:
-                    wallet.pop(utxo)
-                    utxos_writer.writerow(
-                        (block_id, utxo.wallet_id, self.TX_INPUT, utxo.amount)
-                    )
-
-                for utxo in new_tx.change:
-                    wallet.add(utxo)
-                    utxos_writer.writerow(
-                        (block_id, utxo.wallet_id, self.TX_CHANGE, utxo.amount)
-                    )
-
-                processed_payments += 1
-                LOGGER.info(
-                    f"{selector} - {processed_payments}/{total_payments}",
-                    processing_time=f"{selection_end_time - selection_start_time:.4f}",
-                    **selection_context.digest,
+            else:
+                self.pending_payments.append(utxo)
+                self.utxos_writer.writerow(
+                    (block_id, -1, self.PAYMENT_REQUEST, utxo.amount)
                 )
+
+    def select(
+        self, block_id: Hashable, context: SelectionContext
+    ) -> tuple[str, TxDescriptor, float]:
+        partial_selection: tuple[str, TxDescriptor] = (
+            "",
+            TxDescriptor(inputs=[], payments=[]),
+        )
+        start_time: float = time.time()
+        try:
+            partial_selection = (
+                f"{self.main_algorithm.__name__}",
+                self.main_algorithm(selection_context=context),
+            )
+        except (UTxOSelectionFailed, InternalSolverError) as e:
+            if isinstance(e, InternalSolverError):
+                e.model.to_json(self.failed_txs_path / f"txs_{block_id}.json")
+            partial_selection = (
+                f"{self.fallback_algorithm.__name__}",
+                self.fallback_algorithm(selection_context=context),
+            )
+        finally:
+            end_time: float = time.time()
+
+        elapsed_time: float = end_time - start_time
+        return (*partial_selection, elapsed_time)
+
+    def update(self, block_id: Hashable, tx: TxDescriptor) -> None:
+        self.processed_payments += 1
+        remaining_payments: list[UTxO] = []
+        for utxo in self.pending_payments:
+            if utxo not in tx.payments:
+                remaining_payments.append(utxo)
+                continue
+            self.utxos_writer.writerow(
+                (block_id, -1, self.TX_PAYMENT, utxo.amount)
+            )
+        self.pending_payments = remaining_payments
+
+        for utxo in tx.inputs:
+            self.wallet.pop(utxo)
+            self.utxos_writer.writerow(
+                (block_id, utxo.wallet_id, self.TX_INPUT, utxo.amount)
+            )
+
+        for utxo in tx.change:
+            self.wallet.add(utxo)
+            self.utxos_writer.writerow(
+                (block_id, utxo.wallet_id, self.TX_CHANGE, utxo.amount)
+            )
+
+    def _sim(self) -> None:
+        # write csv header
+        self.txs_writer.writerow(SelectionContext.CSV_DATA_HEADER)
+        self.utxos_writer.writerow(self.UTXOS_ACTIVITY_CSV_HEADER)
+        for block_id, block in self.scenario.groupby("block_id"):
+            self.process_block(block_id, block)
+
+            if not self.pending_payments:
+                continue
+
+            selection_context = SelectionContext(
+                wallet=self.wallet,
+                payments=self.pending_payments,
+                fee_rate=FeeRate(btc_to_sat(block.fee_rate.values[0])),
+            )
+            try:
+                selection_context.funds_are_enough()
+            except NotEnoughFunds as e:
+                LOGGER.warn(str(e), **selection_context.digest)
+                self.processed_payments += 1
+                continue
+
+            selector, new_tx, elapsed_time = self.select(
+                block_id, selection_context
+            )
+
+            selection_context.settle_tx(selector, new_tx)
+
+            self.txs_writer.writerow(selection_context.to_csv())
+
+            self.update(block_id, new_tx)
+
+            LOGGER.info(
+                f"{selector} - {self.processed_payments}/{self.total_payments}",
+                processing_time=f"{elapsed_time:.4f}",
+                **selection_context.digest,
+            )
+
+    def run(self) -> None:
+        self.failed_txs_path.mkdir(parents=True, exist_ok=True)
+        with (
+            self.txs_path.open(mode="w") as txs_output,
+            self.utxos_path.open(mode="w") as utxos_output,
+        ):
+            self.txs_writer = csv.writer(txs_output)
+            self.utxos_writer = csv.writer(utxos_output)
+            self._sim()
 
 
 @click.command(help="Run bitcoin coin selection simulations.")
@@ -278,10 +304,11 @@ def simulate(ctx, scenario: str, model: str, exclude: list[str]) -> None:
         excluded.add(tuple(excluded_combination.split(",")))
 
     data_root: Path = ctx.get("data_path")
-    with Simulation(
+    with SimulationBench(
         path=data_root,
         scenario=scenario,
         model=model,
         excluded=frozenset(excluded),
-    ) as simulation:
-        simulation.run()
+    ) as simulation_bench:
+        for simulation in simulation_bench:
+            simulation.run()
