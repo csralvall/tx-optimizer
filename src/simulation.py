@@ -265,7 +265,10 @@ class Simulation:
             LOGGER.info(
                 f"{selector} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
                 walltime=f"{elapsed_time:.4f}",
-                **selection_context.digest,
+                # Drop key-value pairs where value is zero
+                **{
+                    k: v for k, v in selection_context.digest.items() if v != 0
+                },
             )
 
     def run(self) -> None:
