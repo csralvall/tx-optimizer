@@ -264,7 +264,7 @@ class Simulation:
 
             LOGGER.info(
                 f"{selector} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
-                processing_time=f"{elapsed_time:.4f}",
+                walltime=f"{elapsed_time:.4f}",
                 **selection_context.digest,
             )
 
