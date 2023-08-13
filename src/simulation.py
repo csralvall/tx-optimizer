@@ -156,8 +156,8 @@ class Simulation:
                 scenario[scenario["amount"] < 0]["block_id"].unique().shape[0]
             )
             processed_payments: int = 0
+            pending_payments: list = []
             for block_id, block in scenario.groupby("block_id"):
-                pending_payments: list = []
                 for _, tx in block.iterrows():
                     utxo = UTxO(
                         output_type=OutputType.P2WPKH,
