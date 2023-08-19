@@ -1,3 +1,5 @@
 data/scenarios/*.csv filter=lfs diff=lfs merge=lfs -text
 data/feerates/*.csv filter=lfs diff=lfs merge=lfs -text
 data/transactions/*.csv filter=lfs diff=lfs merge=lfs -text
+data/simulations/**/*.json filter=lfs diff=lfs merge=lfs -text lockable
+data/simulations/**/*.csv filter=lfs diff=lfs merge=lfs -text lockable
