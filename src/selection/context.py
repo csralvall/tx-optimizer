@@ -191,7 +191,7 @@ class SelectionContext:
         change_utxo.amount = amount_with_fee_discount
         return change_utxo
 
-    def get_tx(self, utxo_ids: list[int]) -> TxDescriptor:
+    def get_tx(self, utxo_ids: Iterable[int]) -> TxDescriptor:
         tx = deepcopy(self.tx)
         tx.inputs = [self.wallet.get(id) for id in utxo_ids]
         return tx
