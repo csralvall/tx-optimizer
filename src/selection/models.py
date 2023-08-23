@@ -1,5 +1,5 @@
 import random
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from functools import partial
 from itertools import islice
 from multiprocessing import cpu_count
@@ -61,17 +61,18 @@ class CoinSelectionAlgorithm(Protocol):
 
 
 def greatest_first(selection_context: SelectionContext) -> TxDescriptor:
-    selection_input_ids: list[int] = [
-        id
-        for _, id in islice(
+    fee_rated_utxos: Generator[tuple[int, int], None, None] = (
+        utxo
+        for utxo in islice(
             selection_context.fee_rated_utxos,
             selection_context.minimal_number_of_inputs,
         )
-    ]
-    tx: TxDescriptor = selection_context.get_tx(selection_input_ids)
-    overpayment: int = (
-        sum(utxo.amount for utxo in tx.inputs) - selection_context.target
     )
+    fee_rated_utxo_values, fee_rated_utxo_ids = zip(
+        *fee_rated_utxos, strict=True
+    )
+    tx: TxDescriptor = selection_context.get_tx(fee_rated_utxo_ids)
+    overpayment: int = sum(fee_rated_utxo_values) - selection_context.target
 
     try:
         tx.change.append(selection_context.get_change_utxo(overpayment))

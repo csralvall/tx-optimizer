@@ -68,7 +68,20 @@ class TxDescriptor:
     def valid(self, fee_rate: FeeRate) -> bool:
         total_outgoing: int = self.output_amount
         total_outgoing += self.fee(fee_rate) + self.excess
-        return self.input_amount == total_outgoing
+        no_negative_change: bool = all(
+            utxo.amount >= 0 for utxo in self.change
+        )
+        no_negative_excess: bool = self.excess >= 0
+        no_negative_payments: bool = all(
+            utxo.amount >= 0 for utxo in self.payments
+        )
+        no_missing_quantities: bool = self.input_amount == total_outgoing
+        return (
+            no_negative_change
+            and no_negative_excess
+            and no_negative_payments
+            and no_missing_quantities
+        )
 
     @property
     def input_amount(self) -> int:
