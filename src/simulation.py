@@ -88,7 +88,7 @@ class SimulationBench:
         return self
 
     def __exit__(self, *_):
-        self.simulation_end_time: float = time.time()
+        self.simulation_end_time: float = time.process_time()
         elapsed_time: float = (
             self.simulation_end_time - self.simulation_start_time
         )
@@ -102,7 +102,7 @@ class SimulationBench:
             json.dump(self.simulation_summary, simulation_summary_file)
 
     def __iter__(self) -> Generator[Simulation, None, None]:
-        self.simulation_start_time: float = time.time()
+        self.simulation_start_time: float = time.process_time()
         for scenario_path in self._scenarios:
             coin_selection_scenario: DataFrame = pandas.read_csv(
                 scenario_path, names=["block_id", "amount", "fee_rate"]
@@ -187,7 +187,7 @@ class Simulation:
             "",
             TxDescriptor(inputs=[], payments=[]),
         )
-        start_time: float = time.time()
+        start_time: float = time.process_time()
         try:
             partial_selection = (
                 f"{self.main_algorithm.__name__}",
@@ -201,7 +201,7 @@ class Simulation:
                 self.fallback_algorithm(selection_context=context),
             )
         finally:
-            end_time: float = time.time()
+            end_time: float = time.process_time()
 
         elapsed_time: float = end_time - start_time
         return (*partial_selection, elapsed_time)
@@ -264,7 +264,7 @@ class Simulation:
 
             LOGGER.info(
                 f"{selector} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
-                walltime=f"{elapsed_time:.4f}",
+                cputime=f"{elapsed_time:.4f}",
                 # Drop key-value pairs where value is zero
                 **{
                     k: v for k, v in selection_context.digest.items() if v != 0
