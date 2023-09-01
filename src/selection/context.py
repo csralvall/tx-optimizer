@@ -61,6 +61,7 @@ class SelectionContext:
     payments: list[UTxO]
     fee_rate: FeeRate
     id: Hashable = -1
+    cpu_time: str = "0.0000"
     tx: TxDescriptor = field(init=False)
     change_type: OutputType = OutputType.P2WPKH
     status: Literal["ongoing", "success", "failed"] = "ongoing"
@@ -151,6 +152,7 @@ class SelectionContext:
                 NEGATIVE_EFFECTIVE_VALUED_INPUT_KEY: self.negative_effective_valued_inputs
                 or 0,
                 **self.tx.digest,
+                "cpu_time": self.cpu_time,
             }
         base_data[TARGET_FEE_RATE_KEY] = self.fee_rate
         return base_data
@@ -178,6 +180,7 @@ class SelectionContext:
             len(self.wallet),
             *tx_data,
             str(self.fee_rate),
+            self.cpu_time,
         )
 
     def funds_are_enough(self) -> None:

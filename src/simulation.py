@@ -182,7 +182,7 @@ class Simulation:
 
     def select(
         self, block_id: Hashable, context: SelectionContext
-    ) -> tuple[TxDescriptor, float]:
+    ) -> TxDescriptor:
         selected_tx: TxDescriptor
         start_time: float = time.process_time()
         try:
@@ -197,8 +197,8 @@ class Simulation:
         finally:
             end_time: float = time.process_time()
 
-        elapsed_time: float = end_time - start_time
-        return (selected_tx, elapsed_time)
+        context.cpu_time = f"{end_time - start_time:.4f}"
+        return selected_tx
 
     def update(self, block_id: Hashable, tx: TxDescriptor) -> None:
         self.processed_payments += 1
@@ -252,7 +252,7 @@ class Simulation:
                 self.processed_payments += 1
                 continue
 
-            new_tx, elapsed_time = self.select(block_id, selection_context)
+            new_tx = self.select(block_id, selection_context)
 
             self.txs_writer.writerow(selection_context.to_csv())
 
@@ -260,7 +260,6 @@ class Simulation:
 
             LOGGER.info(
                 f"{selection_context.policy} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
-                cputime=f"{elapsed_time:.4f}",
                 # Drop key-value pairs where value is zero
                 **{k: v for k, v in selection_context.digest.items() if v},
             )
