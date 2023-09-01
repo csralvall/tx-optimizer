@@ -56,6 +56,7 @@ class CoinSelectionAlgorithm(Protocol):
     def __call__(self, selection_context: SelectionContext) -> TxDescriptor:
         ...
 
+    @property
     def __name__(self) -> str:
         ...
 
