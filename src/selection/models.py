@@ -566,32 +566,60 @@ def aim_payment_amount_as_change(
 
 
 def minimize_waste(selection_context: SelectionContext) -> TxDescriptor:
-    txs: list[TxDescriptor] = []
+    txs: list[tuple[str, TxDescriptor]] = []
     try:
-        txs.append(minimize_waste_without_change(selection_context))
+        txs.append(
+            (
+                minimize_waste_without_change.__name__,
+                minimize_waste_without_change(selection_context),
+            )
+        )
     except UTxOSelectionFailed:
         pass
     finally:
-        txs.append(minimize_waste_with_change(selection_context))
+        txs.append(
+            (
+                minimize_waste_with_change.__name__,
+                minimize_waste_with_change(selection_context),
+            )
+        )
 
     current_waste: Callable = partial(
         waste, fee_rate=selection_context.fee_rate
     )
-    return min(txs, key=lambda x: current_waste(x))
+
+    policy, tx = min(txs, key=lambda x: current_waste(x[1]))
+
+    selection_context.settle_tx(policy, tx)
+    return tx
 
 
 def maximize_effective_value(
     selection_context: SelectionContext,
 ) -> TxDescriptor:
-    txs: list[TxDescriptor] = []
+    txs: list[tuple[str, TxDescriptor]] = []
     try:
-        txs.append(minimize_waste_without_change(selection_context))
+        txs.append(
+            (
+                minimize_waste_without_change.__name__,
+                minimize_waste_without_change(selection_context),
+            )
+        )
     except UTxOSelectionFailed:
         pass
     finally:
-        txs.append(aim_payment_amount_as_change(selection_context))
+        txs.append(
+            (
+                aim_payment_amount_as_change.__name__,
+                aim_payment_amount_as_change(selection_context),
+            )
+        )
 
     current_waste: Callable = partial(
         waste, fee_rate=selection_context.fee_rate
     )
-    return min(txs, key=lambda x: current_waste(x))
+
+    policy, tx = min(txs, key=lambda x: current_waste(x[1]))
+
+    selection_context.settle_tx(policy, tx)
+    return tx

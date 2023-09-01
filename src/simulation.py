@@ -182,29 +182,23 @@ class Simulation:
 
     def select(
         self, block_id: Hashable, context: SelectionContext
-    ) -> tuple[str, TxDescriptor, float]:
-        partial_selection: tuple[str, TxDescriptor] = (
-            "",
-            TxDescriptor(inputs=[], payments=[]),
-        )
+    ) -> tuple[TxDescriptor, float]:
+        selected_tx: TxDescriptor
         start_time: float = time.process_time()
         try:
-            partial_selection = (
-                f"{self.main_algorithm.__name__}",
-                self.main_algorithm(selection_context=context),
-            )
+            selected_tx = self.main_algorithm(selection_context=context)
+            if context.status != "success":
+                context.settle_tx(self.main_algorithm.__name__, selected_tx)
         except (UTxOSelectionFailed, InternalSolverError) as e:
             if isinstance(e, InternalSolverError):
                 e.model.to_json(self.failed_txs_path / f"txs_{block_id}.json")
-            partial_selection = (
-                f"{self.fallback_algorithm.__name__}",
-                self.fallback_algorithm(selection_context=context),
-            )
+            selected_tx = self.fallback_algorithm(selection_context=context)
+            context.settle_tx(self.fallback_algorithm.__name__, selected_tx)
         finally:
             end_time: float = time.process_time()
 
         elapsed_time: float = end_time - start_time
-        return (*partial_selection, elapsed_time)
+        return (selected_tx, elapsed_time)
 
     def update(self, block_id: Hashable, tx: TxDescriptor) -> None:
         self.processed_payments += 1
@@ -258,11 +252,7 @@ class Simulation:
                 self.processed_payments += 1
                 continue
 
-            selector, new_tx, elapsed_time = self.select(
-                block_id, selection_context
-            )
-
-            selection_context.settle_tx(selector, new_tx)
+            new_tx, elapsed_time = self.select(block_id, selection_context)
 
             self.txs_writer.writerow(selection_context.to_csv())
 
