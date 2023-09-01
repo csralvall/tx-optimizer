@@ -249,7 +249,12 @@ class Simulation:
             try:
                 selection_context.funds_are_enough()
             except NotEnoughFunds as e:
-                LOGGER.warn(str(e), **selection_context.digest)
+                LOGGER.warn(
+                    str(e),
+                    # Drop key-value pairs where value is zero
+                    **{k: v for k, v in selection_context.digest.items() if v},
+                )
+                self.txs_writer.writerow(selection_context.to_csv())
                 self.processed_payments += 1
                 continue
 
