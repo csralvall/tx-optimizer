@@ -41,7 +41,7 @@ class NotEnoughFunds(Exception):
 class SelectionContext:
     CSV_DATA_HEADER: ClassVar[tuple] = (
         "id",
-        "algorithm",
+        "policy",
         "balance",
         "#wallet",
         "#inputs",
@@ -159,7 +159,7 @@ class SelectionContext:
         tx_data: tuple = (0, 0, len(self.payments), 0, 0, 0, 0)
         outcome: str = self.status
         if self.status == "success" and self.tx:
-            outcome = self.algorithm
+            outcome = self.policy
             tx_data = (
                 len(self.tx.inputs),
                 len(self.tx.payments),
@@ -209,5 +209,5 @@ class SelectionContext:
             1 for id in input_ids if id in self.negative_effective_valued_utxos
         )
         self.status = "success"
-        self.algorithm = selector
+        self.policy = selector
         self.tx = tx

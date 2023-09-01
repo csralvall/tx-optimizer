@@ -269,7 +269,7 @@ class Simulation:
             self.update(block_id, new_tx)
 
             LOGGER.info(
-                f"{selector} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
+                f"{selection_context.policy} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
                 cputime=f"{elapsed_time:.4f}",
                 # Drop key-value pairs where value is zero
                 **{k: v for k, v in selection_context.digest.items() if v},
