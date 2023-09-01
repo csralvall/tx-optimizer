@@ -1,3 +1,4 @@
+import contextlib
 import random
 from collections.abc import Callable, Generator
 from functools import partial
@@ -614,6 +615,44 @@ def maximize_effective_value(
                 aim_payment_amount_as_change(selection_context),
             )
         )
+
+    current_waste: Callable = partial(
+        waste, fee_rate=selection_context.fee_rate
+    )
+
+    policy, tx = min(txs, key=lambda x: current_waste(x[1]))
+
+    selection_context.settle_tx(policy, tx)
+    return tx
+
+
+def maximize_effective_value_with_fallback(
+    selection_context: SelectionContext,
+) -> TxDescriptor:
+    txs: list[tuple[str, TxDescriptor]] = []
+
+    with contextlib.suppress(UTxOSelectionFailed):
+        txs.append(
+            (
+                minimize_waste_without_change.__name__,
+                minimize_waste_without_change(selection_context),
+            )
+        )
+
+    with contextlib.suppress(UTxOSelectionFailed):
+        txs.append(
+            (
+                aim_payment_amount_as_change.__name__,
+                aim_payment_amount_as_change(selection_context),
+            )
+        )
+
+    txs.append(
+        (
+            minimize_waste_with_change.__name__,
+            minimize_waste_with_change(selection_context),
+        )
+    )
 
     current_waste: Callable = partial(
         waste, fee_rate=selection_context.fee_rate

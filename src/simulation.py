@@ -24,6 +24,7 @@ from selection.models import (
     avoid_change,
     greatest_first,
     maximize_effective_value,
+    maximize_effective_value_with_fallback,
     minimize_waste,
     single_random_draw,
 )
@@ -40,6 +41,7 @@ class SimulationBench:
         "single-random-draw": single_random_draw,
         "minimize-waste": minimize_waste,
         "maximize-effective-value": maximize_effective_value,
+        "maximize-effective-value-with-fallback": maximize_effective_value_with_fallback,
         "avoid-change": avoid_change,
     }
 
