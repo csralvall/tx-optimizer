@@ -241,6 +241,7 @@ class Simulation:
                 continue
 
             selection_context = SelectionContext(
+                id=block_id,
                 wallet=self.wallet,
                 payments=self.pending_payments,
                 fee_rate=FeeRate(btc_to_sat(block.fee_rate.values[0])),

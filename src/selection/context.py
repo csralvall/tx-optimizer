@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Hashable, Iterable
 from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from itertools import accumulate
@@ -40,6 +40,7 @@ class NotEnoughFunds(Exception):
 @dataclass
 class SelectionContext:
     CSV_DATA_HEADER: ClassVar[tuple] = (
+        "id",
         "algorithm",
         "balance",
         "#wallet",
@@ -53,11 +54,13 @@ class SelectionContext:
         "fee",
         "final_fee_rate",
         "target_fee_rate",
+        "cpu_time",
     )
 
     wallet: Wallet
     payments: list[UTxO]
     fee_rate: FeeRate
+    id: Hashable = -1
     tx: TxDescriptor = field(init=False)
     change_type: OutputType = OutputType.P2WPKH
     status: Literal["ongoing", "success", "failed"] = "ongoing"
@@ -134,6 +137,7 @@ class SelectionContext:
     @property
     def digest(self) -> dict:
         base_data: dict = {
+            "id": self.id,
             "status": self.status,
             "balance": self.wallet.balance,
             "#wallet": len(self.wallet),
@@ -168,6 +172,7 @@ class SelectionContext:
                 self.tx.final_fee_rate,
             )
         return (
+            self.id,
             outcome,
             self.wallet.balance,
             len(self.wallet),
