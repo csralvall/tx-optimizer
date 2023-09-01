@@ -267,9 +267,7 @@ class Simulation:
                 f"{selector} - {self.scenario_name} - {self.processed_payments}/{self.total_payments}",
                 cputime=f"{elapsed_time:.4f}",
                 # Drop key-value pairs where value is zero
-                **{
-                    k: v for k, v in selection_context.digest.items() if v != 0
-                },
+                **{k: v for k, v in selection_context.digest.items() if v},
             )
 
     def run(self) -> None:
