@@ -39,7 +39,7 @@ class SimulationBench:
         "greatest-first": greatest_first,
         "single-random-draw": single_random_draw,
         "minimize-waste": minimize_waste,
-        "maximize-effective_value": maximize_effective_value,
+        "maximize-effective-value": maximize_effective_value,
         "avoid-change": avoid_change,
     }
 
