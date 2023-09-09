@@ -10,7 +10,11 @@ from typing import ClassVar, Literal
 import structlog
 from sortedcontainers import SortedList
 
-from datatypes.fee_rate import CONSOLIDATION_FEE_RATE, FeeRate
+from datatypes.fee_rate import (
+    CONSOLIDATION_FEE_RATE,
+    DUST_RELAY_FEE_RATE,
+    FeeRate,
+)
 from datatypes.transaction import TxDescriptor
 from datatypes.utxo import OutputType, UTxO
 from datatypes.wallet import Wallet
@@ -193,7 +197,9 @@ class SelectionContext:
         amount_with_fee_discount: int = overpayment - change_utxo.output_fee(
             self.fee_rate
         )
-        if amount_with_fee_discount < change_utxo.input_fee(self.fee_rate):
+        if amount_with_fee_discount < change_utxo.input_fee(
+            DUST_RELAY_FEE_RATE
+        ):
             raise DustUTxO
 
         change_utxo.amount = amount_with_fee_discount
