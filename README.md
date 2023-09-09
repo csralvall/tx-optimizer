@@ -13,4 +13,3 @@ pdm install
 ```python
 python simulate.py --all
 ```
-
