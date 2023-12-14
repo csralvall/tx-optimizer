@@ -136,7 +136,7 @@ class SelectionContext:
     def change_cost(self) -> int:
         change_cost = self._change_template.output_fee(
             self.fee_rate
-        ) + self._change_template.input_fee(self.fee_rate)
+        ) + self._change_template.input_fee(CONSOLIDATION_FEE_RATE)
         return change_cost
 
     @property
