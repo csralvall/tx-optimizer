@@ -162,7 +162,7 @@ class SelectionContext:
         return base_data
 
     def to_csv(self) -> tuple:
-        tx_data: tuple = (0, 0, len(self.payments), 0, 0, 0, 0)
+        tx_data: tuple = (0, len(self.payments), 0, 0, 0, 0, 0, 0, 0)
         outcome: str = self.status
         if self.status == "success" and self.tx:
             outcome = self.policy
