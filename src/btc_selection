@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+"""Module implementing the cli entrypoint interface of the coin selection tool.
+
+Includes the following:
+    - cli (function): a callback that groups all subcommands.
+"""
 
 from pathlib import Path
 
@@ -28,6 +33,14 @@ from simulation import simulate
 )
 @click.pass_context
 def cli(context, data_path: Path, debug: bool) -> None:
+    """Main entrypoint of the coin selection tool.
+
+    Args:
+        context: current click context. Useful to read or pass extra data to
+            commands.
+        data_path: the root path to read and write simulation data.
+        debug: flag to incrase the logging verbosity.
+    """
     context.obj = {"data_path": data_path}
     log_level: str = "DEBUG" if debug else "INFO"
     configure_loggers(log_level=log_level)
