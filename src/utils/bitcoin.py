@@ -1,4 +1,4 @@
-from decimal import ROUND_UP, Decimal
+from decimal import ROUND_DOWN, Decimal
 
 COIN = 1e8
 SATOSHI = Decimal(1e-8)
@@ -7,12 +7,12 @@ KILO = 1e3
 
 def btc_round(amount: float) -> float:
     return float(
-        Decimal(amount).quantize(Decimal("0.00000001"), rounding=ROUND_UP)
+        Decimal(amount).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
     )
 
 
 def sat_round(amount: float) -> int:
-    return int(Decimal(amount).quantize(Decimal("1."), rounding=ROUND_UP))
+    return int(Decimal(amount).quantize(Decimal("1."), rounding=ROUND_DOWN))
 
 
 def btc_to_sat(amount: float) -> int:
